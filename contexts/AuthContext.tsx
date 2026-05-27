@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     const email = `${username.toLowerCase()}@prode.app`;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error("Usuario o contraseña incorrectos");
+    if (error) throw new Error(error.message);
 
     const { data: profile } = await supabase
       .from("users")
