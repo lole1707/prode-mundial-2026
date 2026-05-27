@@ -19,8 +19,9 @@ export default function Home() {
     try {
       await login(username, password);
       router.push("/dashboard");
-    } catch {
-      setError("Usuario o contraseña incorrectos");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
