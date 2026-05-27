@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,45 +14,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const email = `${username}@prode.app`;
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const email = `${username.toLowerCase()}@prode.app`;
 
-    // Crear usuario en Firebase Auth via REST
-    const authRes = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, returnSecureToken: true }),
-      }
-    );
-    const authData = await authRes.json();
-    if (!authRes.ok) throw new Error(authData.error?.message ?? "Error al crear usuario");
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
 
-    const uid = authData.localId;
+    if (error) throw new Error(error.message);
 
-    // Crear documento en Firestore via REST
-    await fetch(
-      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${uid}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fields: {
-            uid: { stringValue: uid },
-            displayName: { stringValue: displayName },
-            email: { stringValue: email },
-            totalPoints: { integerValue: 0 },
-            createdAt: { stringValue: new Date().toISOString() },
-          },
-        }),
-      }
-    );
+    await supabaseAdmin.from("users").insert({
+      uid: data.user.id,
+      display_name: displayName,
+      total_points: 0,
+    });
 
-    return NextResponse.json({ uid, email, displayName });
+    return NextResponse.json({ uid: data.user.id, username, displayName });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Error al crear usuario";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
   }
 }

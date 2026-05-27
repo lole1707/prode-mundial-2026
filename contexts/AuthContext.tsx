@@ -1,16 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-
-const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY!;
+import { supabase } from "@/lib/supabase";
 
 interface AuthUser {
   uid: string;
-  email: string;
+  username: string;
   displayName: string;
-  idToken: string;
 }
 
 interface AuthContextType {
@@ -38,38 +34,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string) => {
-    const email = username.includes("@") ? username : `${username}@prode.app`;
+    const email = `${username.toLowerCase()}@prode.app`;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error("Usuario o contraseña incorrectos");
 
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, returnSecureToken: true }),
-      }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message ?? "Credenciales incorrectas");
-
-    // Buscar displayName en Firestore
-    let displayName = data.displayName || username;
-    try {
-      const snap = await getDoc(doc(db, "users", data.localId));
-      if (snap.exists()) displayName = snap.data().displayName ?? displayName;
-    } catch { /* sin conexión a Firestore, usar lo que trajo auth */ }
+    const { data: profile } = await supabase
+      .from("users")
+      .select("display_name")
+      .eq("uid", data.user.id)
+      .single();
 
     const authUser: AuthUser = {
-      uid: data.localId,
-      email: data.email,
-      displayName,
-      idToken: data.idToken,
+      uid: data.user.id,
+      username,
+      displayName: profile?.display_name ?? username,
     };
-
     localStorage.setItem("prode_user", JSON.stringify(authUser));
     setUser(authUser);
   };
 
   const logout = () => {
+    supabase.auth.signOut();
     localStorage.removeItem("prode_user");
     setUser(null);
   };
