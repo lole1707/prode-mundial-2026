@@ -22,6 +22,8 @@ export default function AdminPage() {
   const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
   const [recalculating, setRecalculating] = useState(false);
   const [activeStage, setActiveStage] = useState("group");
   const [users, setUsers] = useState<DBUser[]>([]);
@@ -48,6 +50,33 @@ export default function AdminPage() {
     });
     supabase.from("users").select("uid, display_name, total_points").order("total_points", { ascending: false }).then(({ data }) => setUsers(data ?? []));
   }, [isAdmin]);
+
+  async function syncFromAPI() {
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const res = await fetch("/api/admin/sync-fixture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid: user?.uid }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setSyncMsg(`✓ ${data.synced} partidos sincronizados (${data.finished} finalizados)`);
+      // Reload matches
+      const { data: matchData } = await supabase.from("matches").select("*").order("match_number");
+      if (matchData) setMatches(matchData.map((m: Record<string, unknown>) => ({
+        id: m.id as string, homeTeam: m.home_team as string, awayTeam: m.away_team as string,
+        homeFlag: m.home_flag as string, awayFlag: m.away_flag as string, stage: m.stage as string,
+        group: m.group_name as string, matchNumber: m.match_number as number, datetime: m.datetime as string,
+        venue: m.venue as string, homeScore: m.home_score as number, awayScore: m.away_score as number, finished: m.finished as boolean,
+      })));
+    } catch (err: unknown) {
+      setSyncMsg(`✗ ${err instanceof Error ? err.message : "Error"}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function seedFixture() {
     setSeeding(true);
@@ -164,10 +193,12 @@ export default function AdminPage() {
 
         {tab === "fixture" && (
           <>
-            <div className="flex gap-2 mb-6">
-              <button onClick={seedFixture} disabled={seeding} className="text-sm bg-blue-700 hover:bg-blue-600 disabled:opacity-50 px-3 py-2 rounded-lg">{seeding ? "Cargando..." : "Cargar Fixture"}</button>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button onClick={syncFromAPI} disabled={syncing} className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-2 rounded-lg font-semibold">{syncing ? "Sincronizando..." : "🔄 Sync desde FIFA"}</button>
+              <button onClick={seedFixture} disabled={seeding} className="text-sm bg-blue-700 hover:bg-blue-600 disabled:opacity-50 px-3 py-2 rounded-lg">{seeding ? "Cargando..." : "Cargar Fixture local"}</button>
               <button onClick={recalculateAll} disabled={recalculating} className="text-sm bg-yellow-700 hover:bg-yellow-600 disabled:opacity-50 px-3 py-2 rounded-lg">{recalculating ? "Calculando..." : "Recalcular Puntajes"}</button>
             </div>
+            {syncMsg && <p className={`text-sm mb-4 px-3 py-2 rounded-lg ${syncMsg.startsWith("✓") ? "text-green-400 bg-green-900/20 border border-green-800" : "text-red-400 bg-red-900/20 border border-red-800"}`}>{syncMsg}</p>}
             <div className="flex flex-wrap gap-2 mb-6">
               {stages.map(s => (
                 <button key={s.key} onClick={() => setActiveStage(s.key)}
