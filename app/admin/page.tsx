@@ -67,7 +67,7 @@ export default function AdminPage() {
       const { data: matchData } = await supabase.from("matches").select("*").order("match_number");
       if (matchData) setMatches(matchData.map((m: Record<string, unknown>) => ({
         id: m.id as string, homeTeam: m.home_team as string, awayTeam: m.away_team as string,
-        homeFlag: m.home_flag as string, awayFlag: m.away_flag as string, stage: m.stage as string,
+        homeFlag: m.home_flag as string, awayFlag: m.away_flag as string, stage: m.stage as Match["stage"],
         group: m.group_name as string, matchNumber: m.match_number as number, datetime: m.datetime as string,
         venue: m.venue as string, homeScore: m.home_score as number, awayScore: m.away_score as number, finished: m.finished as boolean,
       })));
