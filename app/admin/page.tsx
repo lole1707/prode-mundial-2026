@@ -8,6 +8,7 @@ import { Match } from "@/lib/types";
 import { FIXTURE } from "@/lib/fixture";
 import { calculatePoints } from "@/lib/scoring";
 import Navbar from "@/components/Navbar";
+import FlagImg from "@/components/FlagImg";
 
 type Tab = "fixture" | "users";
 
@@ -187,13 +188,13 @@ export default function AdminPage() {
                       {match.finished && <span className="text-xs text-green-500 font-semibold">Finalizado</span>}
                     </div>
                     <div className="flex items-center gap-4">
-                      <div className="flex-1 text-right">{match.homeFlag} {match.homeTeam}</div>
+                      <div className="flex-1 text-right flex items-center justify-end gap-2"><span>{match.homeTeam}</span><FlagImg flag={match.homeFlag} size={22} /></div>
                       <div className="flex items-center gap-1">
                         <input type="number" min={0} max={99} value={homeVal} onChange={e => setDrafts(p => ({ ...p, [match.id]: { home: e.target.value, away: p[match.id]?.away ?? awayVal } }))} className="w-12 text-center bg-gray-800 border border-gray-700 rounded-lg py-2 text-white font-bold text-lg focus:outline-none focus:border-green-500" />
                         <span className="text-gray-500">-</span>
                         <input type="number" min={0} max={99} value={awayVal} onChange={e => setDrafts(p => ({ ...p, [match.id]: { home: p[match.id]?.home ?? homeVal, away: e.target.value } }))} className="w-12 text-center bg-gray-800 border border-gray-700 rounded-lg py-2 text-white font-bold text-lg focus:outline-none focus:border-green-500" />
                       </div>
-                      <div className="flex-1">{match.awayTeam} {match.awayFlag}</div>
+                      <div className="flex-1 flex items-center gap-2"><FlagImg flag={match.awayFlag} size={22} /><span>{match.awayTeam}</span></div>
                       <button onClick={() => saveResult(match.id)} disabled={saving === match.id || !drafts[match.id]} className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-40 px-3 py-2 rounded-lg">
                         {saving === match.id ? "..." : "Guardar"}
                       </button>

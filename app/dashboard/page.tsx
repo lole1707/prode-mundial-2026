@@ -8,6 +8,7 @@ import { Match, Prediction } from "@/lib/types";
 import { FIXTURE } from "@/lib/fixture";
 import { calculatePoints } from "@/lib/scoring";
 import Navbar from "@/components/Navbar";
+import FlagImg from "@/components/FlagImg";
 
 const STAGE_LABELS: Record<string, string> = {
   group: "Fase de Grupos",
@@ -106,14 +107,14 @@ export default function Dashboard() {
           <span className="text-xs text-gray-500">{match.venue}</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex-1 text-right">
-            <span className="text-lg">{match.homeFlag}</span>
-            <p className="text-sm font-medium mt-1">{match.homeTeam}</p>
+          <div className="flex-1 text-right flex flex-col items-end gap-1">
+            <FlagImg flag={match.homeFlag} size={28} />
+            <p className="text-sm font-medium text-white">{match.homeTeam}</p>
           </div>
           <div className="flex items-center gap-2">
             {isFinished ? (
               <div className="text-center">
-                <div className="text-2xl font-bold">{match.homeScore} - {match.awayScore}</div>
+                <div className="text-2xl font-bold text-white">{match.homeScore} - {match.awayScore}</div>
                 <div className="text-xs text-gray-500 mt-1">Final</div>
               </div>
             ) : (
@@ -130,9 +131,9 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <div className="flex-1 text-left">
-            <span className="text-lg">{match.awayFlag}</span>
-            <p className="text-sm font-medium mt-1">{match.awayTeam}</p>
+          <div className="flex-1 flex flex-col items-start gap-1">
+            <FlagImg flag={match.awayFlag} size={28} />
+            <p className="text-sm font-medium text-white">{match.awayTeam}</p>
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between">
