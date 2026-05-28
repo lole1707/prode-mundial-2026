@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/lib/supabase";
 
 interface AuthUser {
   uid: string;
@@ -56,16 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = data.user?.id;
     if (!uid) throw new Error("No se recibio ID de usuario");
 
-    const { data: profile } = await supabase
-      .from("users")
-      .select("display_name")
-      .eq("uid", uid)
-      .single();
+    const profileRes = await fetch(
+      `${supabaseUrl}/rest/v1/users?uid=eq.${uid}&select=display_name`,
+      { headers: { "apikey": supabaseKey } }
+    );
+    const profiles = profileRes.ok ? await profileRes.json() : [];
+    const displayName: string = profiles?.[0]?.display_name ?? username;
 
     const authUser: AuthUser = {
       uid,
       username,
-      displayName: profile?.display_name ?? username,
+      displayName,
     };
     localStorage.setItem("prode_user", JSON.stringify(authUser));
     setUser(authUser);
