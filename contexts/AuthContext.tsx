@@ -37,17 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
-    // Diagnóstico: detectar caracter inválido antes del fetch
-    if (!supabaseKey) throw new Error(`DIAG: key vacia. URL: "${supabaseUrl}"`);
-    const badIdx = Array.from(supabaseKey).findIndex(c => c.charCodeAt(0) > 255);
-    if (badIdx >= 0) {
-      throw new Error(`DIAG: key[${badIdx}] U+${supabaseKey.charCodeAt(badIdx).toString(16).toUpperCase()} len=${supabaseKey.length}`);
-    }
-    const urlBadIdx = Array.from(supabaseUrl).findIndex(c => c.charCodeAt(0) > 255);
-    if (urlBadIdx >= 0) {
-      throw new Error(`DIAG: url[${urlBadIdx}] U+${supabaseUrl.charCodeAt(urlBadIdx).toString(16).toUpperCase()}`);
-    }
-
     const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: {
