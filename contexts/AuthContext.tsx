@@ -35,17 +35,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     const email = `${username.toLowerCase()}@prode.app`;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        "apikey": supabaseKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error_description || err.msg || `Error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const uid = data.user?.id;
+    if (!uid) throw new Error("No se recibio ID de usuario");
 
     const { data: profile } = await supabase
       .from("users")
       .select("display_name")
-      .eq("uid", data.user.id)
+      .eq("uid", uid)
       .single();
 
     const authUser: AuthUser = {
-      uid: data.user.id,
+      uid,
       username,
       displayName: profile?.display_name ?? username,
     };
@@ -54,7 +72,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    supabase.auth.signOut();
     localStorage.removeItem("prode_user");
     setUser(null);
   };
