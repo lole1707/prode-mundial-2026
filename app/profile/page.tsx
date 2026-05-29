@@ -7,10 +7,11 @@ import { useAuth } from "@/contexts/AuthContext";
 const CARD_W = 500;
 const CARD_H = 700;
 
-const PHOTO_CX = 0.50;
-const PHOTO_CY = 0.37;
-const PHOTO_RX = 0.42;
-const PHOTO_RY = 0.36;
+// Circle over the face/head area of the silhouette (where the "?" is)
+const FACE_CX = 0.47;   // horizontal center (slightly left of card center)
+const FACE_CY = 0.17;   // vertical center of the head
+const FACE_R  = 0.18;   // radius — covers the full head
+
 const INFO_Y = 0.73;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -40,21 +41,25 @@ async function buildCard(
     loadImage(photoSrc),
   ]);
 
+  // Draw full template (silhouette + jersey stays intact)
   ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
 
-  const cx = CARD_W * PHOTO_CX;
-  const cy = CARD_H * PHOTO_CY;
-  const rx = CARD_W * PHOTO_RX;
-  const ry = CARD_H * PHOTO_RY;
+  // Clip user photo to a circle over the face/head area only
+  const fx = CARD_W * FACE_CX;
+  const fy = CARD_H * FACE_CY;
+  const fr = CARD_W * FACE_R;
 
   ctx.save();
   ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.arc(fx, fy, fr, 0, Math.PI * 2);
   ctx.clip();
-  const bw = rx * 2, bh = ry * 2;
-  const scale = Math.max(bw / photo.width, bh / photo.height);
-  const pw = photo.width * scale, ph = photo.height * scale;
-  ctx.drawImage(photo, cx - rx + (bw - pw) / 2, cy - ry + (bh - ph) / 2, pw, ph);
+
+  // Scale photo to fill circle width; show from the TOP of the photo
+  // (faces are usually in the top portion of a selfie)
+  const diameter = fr * 2;
+  const photoScale = diameter / photo.width;
+  const scaledH = photo.height * photoScale;
+  ctx.drawImage(photo, fx - fr, fy - fr, diameter, scaledH);
   ctx.restore();
 
   const bandY = CARD_H * INFO_Y;
