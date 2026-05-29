@@ -15,10 +15,7 @@ export default function Navbar() {
   }
 
   const navLink = (href: string, label: string) => (
-    <Link
-      href={href}
-      className={`text-sm font-medium transition-colors ${pathname === href ? "text-green-400" : "text-gray-400 hover:text-white"}`}
-    >
+    <Link href={href} className={`text-sm font-medium transition-colors ${pathname === href ? "text-green-400" : "text-gray-400 hover:text-white"}`}>
       {label}
     </Link>
   );
@@ -37,11 +34,15 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400 hidden sm:block">{user?.displayName}</span>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-400 hover:text-red-400 transition-colors"
-          >
+          {user?.photo ? (
+            <img src={user.photo} alt={user.displayName} className="w-8 h-8 rounded-full object-cover border border-gray-700" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-300">
+              {user?.displayName?.[0]?.toUpperCase() ?? "?"}
+            </div>
+          )}
+          <span className="text-sm text-gray-300 hidden sm:block">{user?.displayName}</span>
+          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-red-400 transition-colors">
             Salir
           </button>
         </div>

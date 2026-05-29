@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { calculatePoints } from "@/lib/scoring";
+import { calculatePoints, ScoringConfig } from "@/lib/scoring";
+import { CONFIG_UID, DEFAULTS } from "@/app/api/config/route";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const DB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+function dbHeaders(extra?: Record<string, string>) {
+  return {
+    "apikey": SERVICE_KEY,
+    "Authorization": `Bearer ${SERVICE_KEY}`,
+    "Content-Type": "application/json",
+    ...extra,
+  };
+}
 
 const FLAGS: Record<string, string> = {
   MEX: "🇲🇽", RSA: "🇿🇦", KOR: "🇰🇷", CZE: "🇨🇿",
@@ -50,6 +57,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
+    // Fetch from football-data.org
     const apiRes = await fetch("https://api.football-data.org/v4/competitions/WC/matches", {
       headers: { "X-Auth-Token": process.env.FOOTBALL_DATA_API_KEY! },
     });
@@ -81,24 +89,64 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Replace all matches
-    await supabaseAdmin.from("matches").delete().neq("id", "___never___");
-    await supabaseAdmin.from("matches").insert(rows);
+    // Delete all existing matches
+    const delRes = await fetch(`${DB_URL}/rest/v1/matches?id=neq.___never___`, {
+      method: "DELETE",
+      headers: dbHeaders({ "Prefer": "return=minimal" }),
+    });
+    if (!delRes.ok) {
+      const errBody = await delRes.text();
+      throw new Error(`Delete failed (${delRes.status}): ${errBody}`);
+    }
+
+    // Insert new matches in batches of 50 to avoid payload limits
+    const BATCH = 50;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH);
+      const insRes = await fetch(`${DB_URL}/rest/v1/matches`, {
+        method: "POST",
+        headers: dbHeaders({ "Prefer": "return=minimal" }),
+        body: JSON.stringify(batch),
+      });
+      if (!insRes.ok) {
+        const errBody = await insRes.text();
+        throw new Error(`Insert failed at batch ${i} (${insRes.status}): ${errBody}`);
+      }
+    }
+
+    // Load scoring config
+    let scoring: ScoringConfig = DEFAULTS;
+    const cfgRes = await fetch(`${DB_URL}/rest/v1/users?uid=eq.${CONFIG_UID}&select=display_name`, { headers: dbHeaders() });
+    if (cfgRes.ok) {
+      const cfgRows = await cfgRes.json() as { display_name: string }[];
+      if (cfgRows.length > 0) try { scoring = JSON.parse(cfgRows[0].display_name); } catch {}
+    }
 
     // Recalculate points for all users
     const finishedMatches = rows.filter((m: typeof rows[0]) => m.finished);
     if (finishedMatches.length > 0) {
-      const { data: allUsers } = await supabaseAdmin.from("users").select("uid");
-      for (const u of allUsers ?? []) {
-        const { data: preds } = await supabaseAdmin.from("predictions").select("*").eq("user_id", u.uid);
+      const usersRes = await fetch(`${DB_URL}/rest/v1/users?uid=neq.${CONFIG_UID}&select=uid`, {
+        headers: dbHeaders(),
+      });
+      const allUsers: { uid: string }[] = usersRes.ok ? await usersRes.json() : [];
+
+      for (const u of allUsers) {
+        const predRes = await fetch(`${DB_URL}/rest/v1/predictions?user_id=eq.${u.uid}`, {
+          headers: dbHeaders(),
+        });
+        const preds: Record<string, unknown>[] = predRes.ok ? await predRes.json() : [];
         let total = 0;
-        for (const p of preds ?? []) {
+        for (const p of preds) {
           const match = finishedMatches.find((m: typeof rows[0]) => m.id === p.match_id);
           if (match && match.home_score !== null && match.away_score !== null) {
-            total += calculatePoints(p.home_score, p.away_score, match.home_score, match.away_score);
+            total += calculatePoints(p.home_score as number, p.away_score as number, match.home_score, match.away_score, scoring);
           }
         }
-        await supabaseAdmin.from("users").update({ total_points: total }).eq("uid", u.uid);
+        await fetch(`${DB_URL}/rest/v1/users?uid=eq.${u.uid}`, {
+          method: "PATCH",
+          headers: dbHeaders({ "Prefer": "return=minimal" }),
+          body: JSON.stringify({ total_points: total }),
+        });
       }
     }
 

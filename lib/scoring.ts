@@ -1,25 +1,27 @@
 import { SCORING } from "./types";
 
+export interface ScoringConfig {
+  exact: number;
+  winner: number;
+  draw: number;
+  goalDiff: number;
+}
+
 export function calculatePoints(
   predHome: number,
   predAway: number,
   realHome: number,
-  realAway: number
+  realAway: number,
+  config: ScoringConfig = SCORING
 ): number {
-  // Resultado exacto
-  if (predHome === realHome && predAway === realAway) return SCORING.exact;
+  if (predHome === realHome && predAway === realAway) return config.exact;
 
   const predDiff = predHome - predAway;
   const realDiff = realHome - realAway;
 
-  // Ganador correcto (no exacto)
-  if (realDiff !== 0 && Math.sign(predDiff) === Math.sign(realDiff)) return SCORING.winner;
-
-  // Empate correcto (no exacto)
-  if (realDiff === 0 && predDiff === 0) return SCORING.draw;
-
-  // Diferencia de goles correcta
-  if (predDiff === realDiff) return SCORING.goalDiff;
+  if (realDiff !== 0 && Math.sign(predDiff) === Math.sign(realDiff)) return config.winner;
+  if (realDiff === 0 && predDiff === 0) return config.draw;
+  if (predDiff === realDiff) return config.goalDiff;
 
   return 0;
 }

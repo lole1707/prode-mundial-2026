@@ -2,17 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Match } from "@/lib/types";
 import { FIXTURE } from "@/lib/fixture";
-import { calculatePoints } from "@/lib/scoring";
+import { calculatePoints, ScoringConfig } from "@/lib/scoring";
+import { DEFAULTS } from "@/app/api/config/route";
+import { getDisplayName, getPhoto } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 
-type Tab = "fixture" | "users";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+type Tab = "fixture" | "users" | "scoring";
 
 interface DBUser { uid: string; display_name: string; total_points: number; }
+
+function apiHeaders() {
+  return { "apikey": SUPABASE_KEY, "Content-Type": "application/json" };
+}
 
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
@@ -32,6 +40,8 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState("");
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState("");
+  const [scoring, setScoring] = useState<ScoringConfig>(DEFAULTS);
+  const [scoringMsg, setScoringMsg] = useState("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/dashboard");
@@ -39,16 +49,25 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    supabase.from("matches").select("*").order("match_number").then(({ data }) => {
-      if (data?.length) setMatches(data.map(m => ({
-        id: m.id, homeTeam: m.home_team, awayTeam: m.away_team,
-        homeFlag: m.home_flag, awayFlag: m.away_flag, stage: m.stage,
-        group: m.group_name, matchNumber: m.match_number, datetime: m.datetime,
-        venue: m.venue, homeScore: m.home_score, awayScore: m.away_score, finished: m.finished,
-      })));
-      else setMatches(FIXTURE.map(m => ({ ...m, homeScore: null, awayScore: null, finished: false })));
-    });
-    supabase.from("users").select("uid, display_name, total_points").order("total_points", { ascending: false }).then(({ data }) => setUsers(data ?? []));
+
+    fetch("/api/config").then(r => r.json()).then(cfg => setScoring(cfg)).catch(() => {});
+
+    fetch("/api/matches")
+      .then(r => r.json())
+      .then((data: Record<string, unknown>[]) => {
+        if (data?.length) {
+          setMatches(data.map(m => ({
+            id: m.id as string, homeTeam: m.home_team as string, awayTeam: m.away_team as string,
+            homeFlag: m.home_flag as string, awayFlag: m.away_flag as string, stage: m.stage as Match["stage"],
+            group: m.group_name as string, matchNumber: m.match_number as number, datetime: m.datetime as string,
+            venue: m.venue as string, homeScore: m.home_score as number, awayScore: m.away_score as number, finished: m.finished as boolean,
+          })));
+        }
+      });
+
+    fetch(`${SUPABASE_URL}/rest/v1/users?uid=neq.__scoring_config__&order=total_points.desc`, { headers: apiHeaders() })
+      .then(r => r.json())
+      .then((data: DBUser[]) => setUsers(data ?? []));
   }, [isAdmin]);
 
   async function syncFromAPI() {
@@ -63,14 +82,16 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSyncMsg(`✓ ${data.synced} partidos sincronizados (${data.finished} finalizados)`);
-      // Reload matches
-      const { data: matchData } = await supabase.from("matches").select("*").order("match_number");
-      if (matchData) setMatches(matchData.map((m: Record<string, unknown>) => ({
-        id: m.id as string, homeTeam: m.home_team as string, awayTeam: m.away_team as string,
-        homeFlag: m.home_flag as string, awayFlag: m.away_flag as string, stage: m.stage as Match["stage"],
-        group: m.group_name as string, matchNumber: m.match_number as number, datetime: m.datetime as string,
-        venue: m.venue as string, homeScore: m.home_score as number, awayScore: m.away_score as number, finished: m.finished as boolean,
-      })));
+      const matchRes = await fetch("/api/matches");
+      if (matchRes.ok) {
+        const matchData = await matchRes.json() as Record<string, unknown>[];
+        setMatches(matchData.map(m => ({
+          id: m.id as string, homeTeam: m.home_team as string, awayTeam: m.away_team as string,
+          homeFlag: m.home_flag as string, awayFlag: m.away_flag as string, stage: m.stage as Match["stage"],
+          group: m.group_name as string, matchNumber: m.match_number as number, datetime: m.datetime as string,
+          venue: m.venue as string, homeScore: m.home_score as number, awayScore: m.away_score as number, finished: m.finished as boolean,
+        })));
+      }
     } catch (err: unknown) {
       setSyncMsg(`✗ ${err instanceof Error ? err.message : "Error"}`);
     } finally {
@@ -87,7 +108,11 @@ export default function AdminPage() {
       datetime: m.datetime, venue: m.venue,
       home_score: null, away_score: null, finished: false,
     }));
-    await supabase.from("matches").upsert(rows, { onConflict: "id" });
+    await fetch(`${SUPABASE_URL}/rest/v1/matches?on_conflict=id`, {
+      method: "POST",
+      headers: { ...apiHeaders(), "Prefer": "resolution=merge-duplicates" },
+      body: JSON.stringify(rows),
+    });
     setMatches(FIXTURE.map(m => ({ ...m, homeScore: null, awayScore: null, finished: false })));
     setSeeding(false);
   }
@@ -98,7 +123,11 @@ export default function AdminPage() {
     const home = parseInt(draft.home), away = parseInt(draft.away);
     if (isNaN(home) || isNaN(away)) return;
     setSaving(matchId);
-    await supabase.from("matches").update({ home_score: home, away_score: away, finished: true }).eq("id", matchId);
+    await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
+      method: "PATCH",
+      headers: apiHeaders(),
+      body: JSON.stringify({ home_score: home, away_score: away, finished: true }),
+    });
     setMatches(prev => prev.map(m => m.id === matchId ? { ...m, homeScore: home, awayScore: away, finished: true } : m));
     setDrafts(prev => { const n = { ...prev }; delete n[matchId]; return n; });
     setSaving(null);
@@ -107,18 +136,37 @@ export default function AdminPage() {
   async function recalculateAll() {
     setRecalculating(true);
     const finished = matches.filter(m => m.finished && m.homeScore !== null);
-    const { data: allUsers } = await supabase.from("users").select("uid, display_name, total_points");
-    for (const u of allUsers ?? []) {
-      const { data: preds } = await supabase.from("predictions").select("*").eq("user_id", u.uid);
+    const usersRes = await fetch(`/api/predictions`);
+    const allUsersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid,display_name,total_points`, { headers: apiHeaders() });
+    const allUsers: DBUser[] = allUsersRes.ok ? await allUsersRes.json() : [];
+    for (const u of allUsers) {
+      const predRes = await fetch(`/api/predictions?userId=${u.uid}`);
+      const preds: Record<string, unknown>[] = predRes.ok ? await predRes.json() : [];
       let total = 0;
-      for (const p of preds ?? []) {
+      for (const p of preds) {
         const match = finished.find(m => m.id === p.match_id);
-        if (match) total += calculatePoints(p.home_score, p.away_score, match.homeScore!, match.awayScore!);
+        if (match) total += calculatePoints(p.home_score as number, p.away_score as number, match.homeScore!, match.awayScore!, scoring);
       }
-      await supabase.from("users").update({ total_points: total }).eq("uid", u.uid);
+      await fetch(`${SUPABASE_URL}/rest/v1/users?uid=eq.${u.uid}`, {
+        method: "PATCH",
+        headers: apiHeaders(),
+        body: JSON.stringify({ total_points: total }),
+      });
     }
     setRecalculating(false);
     alert("Puntajes recalculados.");
+  }
+
+  async function saveScoring(e: React.FormEvent) {
+    e.preventDefault();
+    setScoringMsg("");
+    const res = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminUid: user?.uid, scoring }),
+    });
+    const data = await res.json();
+    setScoringMsg(res.ok ? "✓ Puntajes guardados" : `✗ ${data.error}`);
   }
 
   async function createUser(e: React.FormEvent) {
@@ -157,10 +205,10 @@ export default function AdminPage() {
       <div className="max-w-3xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">Panel de Admin</h1>
         <div className="flex gap-2 mb-6 bg-gray-800 p-1 rounded-xl w-fit">
-          {(["fixture","users"] as Tab[]).map(t => (
+          {(["fixture","users","scoring"] as Tab[]).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-green-600 text-white" : "text-gray-400 hover:text-white"}`}>
-              {t === "fixture" ? "Fixture y Resultados" : "Usuarios"}
+              {t === "fixture" ? "Fixture y Resultados" : t === "users" ? "Usuarios" : "Puntajes"}
             </button>
           ))}
         </div>
@@ -181,12 +229,23 @@ export default function AdminPage() {
             </div>
             <h2 className="text-lg font-semibold mb-3">Participantes ({users.length})</h2>
             <div className="space-y-2">
-              {users.map(u => (
-                <div key={u.uid} className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
-                  <p className="font-medium">{u.display_name}</p>
-                  <span className="text-green-400 font-bold">{u.total_points} pts</span>
-                </div>
-              ))}
+              {users.map(u => {
+                const name = getDisplayName(u.display_name);
+                const photo = getPhoto(u.display_name);
+                return (
+                  <div key={u.uid} className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+                    {photo ? (
+                      <img src={photo} alt={name} className="w-8 h-8 rounded-full object-cover border border-gray-700 flex-shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-400 flex-shrink-0">
+                        {name[0]?.toUpperCase() ?? "?"}
+                      </div>
+                    )}
+                    <p className="font-medium flex-1">{name}</p>
+                    <span className="text-green-400 font-bold">{u.total_points} pts</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -194,7 +253,7 @@ export default function AdminPage() {
         {tab === "fixture" && (
           <>
             <div className="flex flex-wrap gap-2 mb-4">
-              <button onClick={syncFromAPI} disabled={syncing} className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-2 rounded-lg font-semibold">{syncing ? "Sincronizando..." : "🔄 Sync desde FIFA"}</button>
+              <button onClick={syncFromAPI} disabled={syncing} className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-2 rounded-lg font-semibold">{syncing ? "Sincronizando..." : "Sync desde FIFA"}</button>
               <button onClick={seedFixture} disabled={seeding} className="text-sm bg-blue-700 hover:bg-blue-600 disabled:opacity-50 px-3 py-2 rounded-lg">{seeding ? "Cargando..." : "Cargar Fixture local"}</button>
               <button onClick={recalculateAll} disabled={recalculating} className="text-sm bg-yellow-700 hover:bg-yellow-600 disabled:opacity-50 px-3 py-2 rounded-lg">{recalculating ? "Calculando..." : "Recalcular Puntajes"}</button>
             </div>
@@ -235,6 +294,41 @@ export default function AdminPage() {
               })}
             </div>
           </>
+        )}
+
+        {tab === "scoring" && (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <h2 className="text-lg font-semibold mb-1">Sistema de puntajes</h2>
+            <p className="text-sm text-gray-500 mb-6">Se aplica solo el puntaje más alto que corresponda.</p>
+            <form onSubmit={saveScoring} className="space-y-4">
+              {[
+                { key: "exact", label: "Resultado exacto", desc: "Ej: predijo 2-1, salió 2-1" },
+                { key: "winner", label: "Ganador correcto", desc: "Ej: predijo 2-1, salió 3-1" },
+                { key: "draw", label: "Empate correcto", desc: "Ej: predijo 1-1, salió 0-0" },
+                { key: "goalDiff", label: "Diferencia de goles", desc: "Ej: predijo 2-0, salió 3-1" },
+              ].map(({ key, label, desc }) => (
+                <div key={key} className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-white">{label}</p>
+                    <p className="text-xs text-gray-500">{desc}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min={0} max={99}
+                      value={scoring[key as keyof ScoringConfig]}
+                      onChange={e => setScoring(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+                      className="w-16 text-center bg-gray-800 border border-gray-700 rounded-lg py-2 text-white font-bold text-lg focus:outline-none focus:border-green-500"
+                    />
+                    <span className="text-gray-500 text-sm">pts</span>
+                  </div>
+                </div>
+              ))}
+              {scoringMsg && <p className={`text-sm rounded-lg px-3 py-2 ${scoringMsg.startsWith("✓") ? "text-green-400 bg-green-900/20 border border-green-800" : "text-red-400 bg-red-900/20 border border-red-800"}`}>{scoringMsg}</p>}
+              <button type="submit" className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-lg transition-colors">
+                Guardar puntajes
+              </button>
+            </form>
+          </div>
         )}
       </div>
     </div>
