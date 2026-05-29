@@ -65,7 +65,7 @@ export default function AdminPage() {
         }
       });
 
-    fetch(`${SUPABASE_URL}/rest/v1/users?uid=neq.__scoring_config__&order=total_points.desc`, { headers: apiHeaders() })
+    fetch("/api/admin/users")
       .then(r => r.json())
       .then((data: DBUser[]) => setUsers(data ?? []));
   }, [isAdmin]);
@@ -136,8 +136,7 @@ export default function AdminPage() {
   async function recalculateAll() {
     setRecalculating(true);
     const finished = matches.filter(m => m.finished && m.homeScore !== null);
-    const usersRes = await fetch(`/api/predictions`);
-    const allUsersRes = await fetch(`${SUPABASE_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid,display_name,total_points`, { headers: apiHeaders() });
+    const allUsersRes = await fetch("/api/admin/users");
     const allUsers: DBUser[] = allUsersRes.ok ? await allUsersRes.json() : [];
     for (const u of allUsers) {
       const predRes = await fetch(`/api/predictions?userId=${u.uid}`);

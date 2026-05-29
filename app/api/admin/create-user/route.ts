@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     if (!insertRes.ok) {
       const err = await insertRes.text();
-      console.error("users insert error:", err);
+      return NextResponse.json({ error: `Usuario auth creado pero error en DB: ${err}` }, { status: 500 });
     }
 
     return NextResponse.json({ uid, username, displayName });
