@@ -1,19 +1,17 @@
 export const CARD_W = 500;
 export const CARD_H = 700;
 
-// Full silhouette ellipse (head + body)
 export const SIL_CX = 0.47;
 export const SIL_CY = 0.37;
 export const SIL_RX = 0.38;
 export const SIL_RY = 0.35;
-
 export const INFO_Y  = 0.73;
 
 export interface PhotoTransform {
-  x: number;      // photo left edge in canvas pixels
-  y: number;      // photo top edge in canvas pixels
-  w: number;      // drawn width in canvas pixels
-  h: number;      // drawn height in canvas pixels
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -25,8 +23,42 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+// Cache the processed template (dark pixels removed) as a data URL
+let _processedTemplate: string | null = null;
+
+export async function getProcessedTemplate(): Promise<string> {
+  if (_processedTemplate) return _processedTemplate;
+
+  const img = await loadImage("/card-template.jpg");
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(img, 0, 0);
+
+  const id = ctx.getImageData(0, 0, c.width, c.height);
+  const d = id.data;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    // Perceptual luminance
+    const lum = r * 0.299 + g * 0.587 + b * 0.114;
+    if (lum < 55) {
+      // Very dark → fully transparent (removes the black silhouette)
+      d[i + 3] = 0;
+    } else if (lum < 100) {
+      // Soft edge transition
+      d[i + 3] = Math.round(((lum - 55) / 45) * 255);
+    }
+    // Bright/coloured pixels stay fully opaque (card design stays intact)
+  }
+
+  ctx.putImageData(id, 0, 0);
+  _processedTemplate = c.toDataURL("image/png");
+  return _processedTemplate;
+}
+
 function defaultTransform(photo: HTMLImageElement): PhotoTransform {
-  // Fill the silhouette ellipse bounding box, top-aligned
   const cx = CARD_W * SIL_CX;
   const cy = CARD_H * SIL_CY;
   const rx = CARD_W * SIL_RX;
@@ -53,23 +85,26 @@ export async function buildCard(
   canvas.height = CARD_H;
   const ctx = canvas.getContext("2d")!;
 
-  const [template, photo] = await Promise.all([
-    loadImage("/card-template.jpg"),
+  const [photo, processedTplSrc] = await Promise.all([
     loadImage(photoSrc),
+    getProcessedTemplate(),
   ]);
+  const tpl = await loadImage(processedTplSrc);
 
   const t = transform ?? defaultTransform(photo);
 
-  // Draw photo first (behind everything)
+  // 1. White background so JPEG output has no black bleed
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+
+  // 2. Photo behind
   ctx.drawImage(photo, t.x, t.y, t.w, t.h);
 
-  // Draw template on top with multiply blend:
-  // — dark silhouette stays dark (frames the photo)
-  // — light/teal areas tint the photo giving the sticker look
-  ctx.globalCompositeOperation = "multiply";
-  ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
-  ctx.globalCompositeOperation = "source-over";
+  // 3. Processed template on top — dark silhouette is now transparent,
+  //    card design (teal, logos, numbers) overlays the photo
+  ctx.drawImage(tpl, 0, 0, CARD_W, CARD_H);
 
+  // 4. Info band overlay + text
   const bandY = CARD_H * INFO_Y;
   const bandH = CARD_H - bandY;
   ctx.fillStyle = "rgba(0,0,0,0.72)";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { CARD_W, CARD_H, SIL_CX, SIL_CY, SIL_RX, SIL_RY, PhotoTransform } from "@/lib/buildCard";
+import { CARD_W, CARD_H, SIL_CX, SIL_CY, SIL_RX, SIL_RY, PhotoTransform, getProcessedTemplate } from "@/lib/buildCard";
 
 interface Props {
   photoSrc: string;
@@ -21,6 +21,7 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
   const [natW, setNatW] = useState(1);
   const [natH, setNatH] = useState(1);
   const [ready, setReady] = useState(false);
+  const [processedTpl, setProcessedTpl] = useState<string | null>(null);
 
   const displayH = displayW * (CARD_H / CARD_W);
 
@@ -35,6 +36,8 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
     if (!el) return;
     const w = Math.min(el.clientWidth, 380);
     setDisplayW(w);
+    // Preload processed template (dark pixels removed)
+    getProcessedTemplate().then(setProcessedTpl).catch(() => {});
   }, []);
 
   // Load photo and init: fill silhouette bounding box, top-aligned
@@ -193,24 +196,33 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
                 userSelect: "none",
                 pointerEvents: "all",
                 cursor: "grab",
-                zIndex: 1,
+                zIndex: 2,
               }}
             />
           )}
 
-          {/* Template on top with multiply — dark silhouette frames the photo,
-              card design overlays it naturally */}
+          {/* Card background (full template, always visible) */}
           <img
             src="/card-template.jpg"
             alt=""
             className="absolute inset-0 w-full h-full object-fill pointer-events-none"
-            style={{ zIndex: 2, mixBlendMode: "multiply" }}
+            style={{ zIndex: 0 }}
           />
+
+          {/* Processed template on top: dark/black pixels removed so photo shows through */}
+          {processedTpl && (
+            <img
+              src={processedTpl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+              style={{ zIndex: 3 }}
+            />
+          )}
 
           {/* Dashed guide showing silhouette ellipse boundary */}
           <svg
             className="absolute inset-0 pointer-events-none"
-            style={{ width: "100%", height: "100%", zIndex: 3 }}
+            style={{ width: "100%", height: "100%", zIndex: 4 }}
             viewBox={`0 0 ${displayW} ${displayH}`}
           >
             <ellipse cx={scx} cy={scy} rx={srx} ry={sry}
