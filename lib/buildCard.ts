@@ -23,11 +23,13 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// Cache the processed template (dark pixels removed) as a data URL
+// Cache the processed template — bump version string to invalidate on threshold changes
+const TPL_VERSION = "v3";
 let _processedTemplate: string | null = null;
+let _processedVersion = "";
 
 export async function getProcessedTemplate(): Promise<string> {
-  if (_processedTemplate) return _processedTemplate;
+  if (_processedTemplate && _processedVersion === TPL_VERSION) return _processedTemplate;
 
   const img = await loadImage("/card-template.jpg");
   const c = document.createElement("canvas");
@@ -43,18 +45,19 @@ export async function getProcessedTemplate(): Promise<string> {
     const r = d[i], g = d[i + 1], b = d[i + 2];
     // Perceptual luminance
     const lum = r * 0.299 + g * 0.587 + b * 0.114;
-    if (lum < 55) {
-      // Very dark → fully transparent (removes the black silhouette)
+    if (lum < 90) {
+      // Dark (black + dark gray, head outline, ears, neck) → fully transparent
       d[i + 3] = 0;
-    } else if (lum < 100) {
-      // Soft edge transition
-      d[i + 3] = Math.round(((lum - 55) / 45) * 255);
+    } else if (lum < 135) {
+      // Soft edge so the transition isn't harsh
+      d[i + 3] = Math.round(((lum - 90) / 45) * 255);
     }
     // Bright/coloured pixels stay fully opaque (card design stays intact)
   }
 
   ctx.putImageData(id, 0, 0);
   _processedTemplate = c.toDataURL("image/png");
+  _processedVersion = TPL_VERSION;
   return _processedTemplate;
 }
 
