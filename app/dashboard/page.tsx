@@ -203,7 +203,8 @@ export default function Dashboard() {
               const pred = predictions[m.id];
               const draft = drafts[m.id];
               const isFinished = m.finished && m.homeScore !== null && m.awayScore !== null;
-              const isPast = new Date(m.datetime) < new Date();
+              const cutoff = new Date(new Date(m.datetime).getTime() - 30 * 60 * 1000);
+              const isPast = cutoff < new Date();
               const canPredict = !isPast && !isFinished;
               const pts = isFinished && pred ? calculatePoints(pred.homeScore, pred.awayScore, m.homeScore!, m.awayScore!, scoring) : null;
               const homeVal = draft?.home ?? (pred ? String(pred.homeScore) : "");
@@ -215,7 +216,8 @@ export default function Dashboard() {
                     {isFinished && pred && (
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pts! > 0 ? "bg-green-900/50 text-green-400" : "bg-gray-800 text-gray-500"}`}>{pts} pts</span>
                     )}
-                    {isPast && !isFinished && !pred && <span className="text-xs text-red-500">Sin pronóstico</span>}
+                    {isPast && !isFinished && !pred && <span className="text-xs text-red-500">Cerrado sin pronóstico</span>}
+                    {isPast && !isFinished && pred && <span className="text-xs text-gray-500">Cerrado</span>}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 flex flex-col items-end gap-1">
