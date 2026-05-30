@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { CARD_W, CARD_H, FACE_CX, FACE_CY, FACE_R, PhotoTransform } from "@/lib/buildCard";
+import { CARD_W, CARD_H, SIL_CX, SIL_CY, SIL_RX, SIL_RY, PhotoTransform } from "@/lib/buildCard";
 
 interface Props {
   photoSrc: string;
@@ -13,81 +13,82 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
   const containerRef = useRef<HTMLDivElement>(null);
   const [displayW, setDisplayW] = useState(320);
 
-  // Photo position in display pixels (top-left corner of photo)
+  // Photo state in display pixels
   const [px, setPx] = useState(0);
   const [py, setPy] = useState(0);
-  const [pScale, setPScale] = useState(1); // photo display scale
+  const [scale, setScale] = useState(1);  // display scale multiplier
 
-  const [photoNatW, setPhotoNatW] = useState(1);
-  const [photoNatH, setPhotoNatH] = useState(1);
+  const [natW, setNatW] = useState(1);
+  const [natH, setNatH] = useState(1);
   const [ready, setReady] = useState(false);
 
   const displayH = displayW * (CARD_H / CARD_W);
 
-  // Face circle in display coords
-  const fcx = displayW * FACE_CX;
-  const fcy = displayH * FACE_CY;
-  const fr  = displayW * FACE_R;
+  // Silhouette ellipse in display coords
+  const scx = displayW * SIL_CX;
+  const scy = displayH * SIL_CY;
+  const srx = displayW * SIL_RX;
+  const sry = displayH * SIL_RY;
 
   useEffect(() => {
     const el = containerRef.current;
-    if (el) setDisplayW(el.clientWidth);
+    if (!el) return;
+    const w = Math.min(el.clientWidth, 380);
+    setDisplayW(w);
   }, []);
 
-  // Load photo and init position so it fills the face circle
+  // Load photo and init: fill silhouette bounding box, top-aligned
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
-      setPhotoNatW(img.naturalWidth);
-      setPhotoNatH(img.naturalHeight);
-      // Fill face circle width
-      const initW = fr * 2;
-      const initScale = initW / img.naturalWidth;
-      const initH = img.naturalHeight * initScale;
-      setPScale(initScale);
-      // Center on face circle
-      setPx(fcx - fr);
-      setPy(fcy - fr);
+      setNatW(img.naturalWidth);
+      setNatH(img.naturalHeight);
+      const bw = srx * 2;
+      const bh = sry * 2;
+      const initScale = Math.max(bw / img.naturalWidth, bh / img.naturalHeight);
+      const pw = img.naturalWidth * initScale;
+      const ph = img.naturalHeight * initScale;
+      setScale(initScale);
+      // Center horizontally, top of ellipse vertically
+      setPx(scx - srx + (bw - pw) / 2);
+      setPy(scy - sry);
       setReady(true);
     };
     img.src = photoSrc;
-  }, [photoSrc, fcx, fcy, fr]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoSrc, scx, scy, srx, sry]);
 
-  const photoW = photoNatW * pScale;
-  const photoH = photoNatH * pScale;
+  const photoW = natW * scale;
+  const photoH = natH * scale;
 
   // Drag
   const dragging = useRef(false);
-  const lastPos = useRef({ x: 0, y: 0 });
+  const lastMouse = useRef({ x: 0, y: 0 });
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     dragging.current = true;
-    lastPos.current = { x: e.clientX, y: e.clientY };
+    lastMouse.current = { x: e.clientX, y: e.clientY };
     e.preventDefault();
   }, []);
-
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragging.current) return;
-    const dx = e.clientX - lastPos.current.x;
-    const dy = e.clientY - lastPos.current.y;
-    lastPos.current = { x: e.clientX, y: e.clientY };
-    setPx(p => p + dx);
-    setPy(p => p + dy);
+    setPx(p => p + (e.clientX - lastMouse.current.x));
+    setPy(p => p + (e.clientY - lastMouse.current.y));
+    lastMouse.current = { x: e.clientX, y: e.clientY };
   }, []);
+  const stopDrag = useCallback(() => { dragging.current = false; }, []);
 
-  const onMouseUp = useCallback(() => { dragging.current = false; }, []);
-
-  // Touch drag + pinch
-  const lastTouches = useRef<{ x: number; y: number; dist: number } | null>(null);
+  // Touch: drag + pinch
+  const lastTouch = useRef<{ x: number; y: number; dist: number } | null>(null);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     if (e.touches.length === 1) {
-      lastTouches.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dist: 0 };
-    } else if (e.touches.length === 2) {
+      lastTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dist: 0 };
+    } else {
       const dx = e.touches[1].clientX - e.touches[0].clientX;
       const dy = e.touches[1].clientY - e.touches[0].clientY;
-      lastTouches.current = {
+      lastTouch.current = {
         x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
         y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
         dist: Math.sqrt(dx*dx + dy*dy),
@@ -97,85 +98,85 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
-    if (!lastTouches.current) return;
+    if (!lastTouch.current) return;
     if (e.touches.length === 1) {
-      const dx = e.touches[0].clientX - lastTouches.current.x;
-      const dy = e.touches[0].clientY - lastTouches.current.y;
-      lastTouches.current = { ...lastTouches.current, x: e.touches[0].clientX, y: e.touches[0].clientY };
+      const dx = e.touches[0].clientX - lastTouch.current.x;
+      const dy = e.touches[0].clientY - lastTouch.current.y;
       setPx(p => p + dx);
       setPy(p => p + dy);
-    } else if (e.touches.length === 2 && lastTouches.current.dist > 0) {
+      lastTouch.current = { ...lastTouch.current, x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2 && lastTouch.current.dist > 0) {
       const dx = e.touches[1].clientX - e.touches[0].clientX;
       const dy = e.touches[1].clientY - e.touches[0].clientY;
       const newDist = Math.sqrt(dx*dx + dy*dy);
-      const ratio = newDist / lastTouches.current.dist;
+      const ratio = newDist / lastTouch.current.dist;
       const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      // Scale around midpoint
-      setPScale(s => Math.max(0.1, Math.min(s * ratio, 10)));
+      // Scale around pinch midpoint
+      setScale(s => Math.max(0.05, s * ratio));
       setPx(p => midX + (p - midX) * ratio);
       setPy(p => midY + (p - midY) * ratio);
-      lastTouches.current = { x: midX, y: midY, dist: newDist };
+      lastTouch.current = { x: midX, y: midY, dist: newDist };
     }
   }, []);
 
   // Wheel zoom
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.92 : 1.08;
+    const factor = e.deltaY > 0 ? 0.93 : 1.07;
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    setPScale(s => Math.max(0.1, Math.min(s * delta, 10)));
-    setPx(p => mx + (p - mx) * delta);
-    setPy(p => my + (p - my) * delta);
+    setScale(s => Math.max(0.05, s * factor));
+    setPx(p => mx + (p - mx) * factor);
+    setPy(p => my + (p - my) * factor);
   }, []);
 
-  function zoom(factor: number) {
-    setPScale(s => Math.max(0.1, Math.min(s * factor, 10)));
-    setPx(p => fcx + (p - fcx) * factor);
-    setPy(p => fcy + (p - fcy) * factor);
+  // Slider: scale around silhouette center
+  function handleSlider(newScale: number) {
+    const ratio = newScale / scale;
+    setScale(newScale);
+    setPx(p => scx + (p - scx) * ratio);
+    setPy(p => scy + (p - scy) * ratio);
   }
 
   function handleConfirm() {
-    // Convert display coords → canvas coords
-    const scale = CARD_W / displayW;
-    const transform: PhotoTransform = {
-      x: px * scale,
-      y: py * scale,
-      w: photoW * scale,
-      h: photoH * scale,
-    };
-    onConfirm(transform);
+    const factor = CARD_W / displayW;
+    onConfirm({ x: px * factor, y: py * factor, w: photoW * factor, h: photoH * factor });
   }
 
+  // Slider value: map scale to a 0-100 range logarithmically
+  const sliderVal = Math.round(Math.log(scale / 0.05) / Math.log(20 / 0.05) * 100);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black flex flex-col" style={{ touchAction: "none" }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
-        <button onClick={onCancel} className="text-gray-400 hover:text-white text-sm">Cancelar</button>
-        <p className="text-sm font-semibold text-white">Posicioná tu foto</p>
-        <button onClick={handleConfirm} className="text-sm font-bold text-green-400 hover:text-green-300">Listo ✓</button>
+        <button onClick={onCancel} className="text-gray-400 hover:text-white text-sm px-2 py-1">Cancelar</button>
+        <p className="text-sm font-semibold text-white">Ajustá tu foto</p>
+        <button onClick={handleConfirm} className="text-sm font-bold text-green-400 hover:text-green-300 px-2 py-1">Listo ✓</button>
       </div>
 
-      <p className="text-center text-xs text-gray-500 py-2 flex-shrink-0">Arrastrá y pinzá para ajustar la foto sobre la cara</p>
+      <p className="text-center text-xs text-gray-500 py-2 flex-shrink-0">
+        Arrastrá para mover · Pinzá o usá el slider para agrandar/achicar
+      </p>
 
-      {/* Card + photo overlay */}
-      <div className="flex-1 flex items-center justify-center overflow-hidden px-2">
+      {/* Card area */}
+      <div className="flex-1 flex items-center justify-center overflow-hidden px-3">
         <div
           ref={containerRef}
-          className="relative select-none"
-          style={{ width: "100%", maxWidth: 360, aspectRatio: `${CARD_W}/${CARD_H}` }}
+          className="relative overflow-hidden rounded-xl shadow-2xl"
+          style={{ width: "100%", maxWidth: 380, aspectRatio: `${CARD_W}/${CARD_H}`, cursor: "grab" }}
           onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
+          onMouseUp={stopDrag}
+          onMouseLeave={stopDrag}
           onWheel={onWheel}
         >
-          {/* Card template */}
-          <img src="/card-template.jpg" alt="template" className="w-full h-full object-fill pointer-events-none rounded-xl" />
+          {/* Template */}
+          <img src="/card-template.jpg" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" />
 
-          {/* Draggable photo */}
+          {/* Photo */}
           {ready && (
             <img
               src={photoSrc}
@@ -184,44 +185,62 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
               onMouseDown={onMouseDown}
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
-              onTouchEnd={() => { lastTouches.current = null; }}
+              onTouchEnd={() => { lastTouch.current = null; }}
               style={{
                 position: "absolute",
                 left: px,
                 top: py,
                 width: photoW,
                 height: photoH,
-                cursor: "grab",
                 touchAction: "none",
                 userSelect: "none",
-                opacity: 0.85,
+                pointerEvents: "all",
+                cursor: "grab",
               }}
             />
           )}
 
-          {/* Face circle guide overlay */}
+          {/* Guide overlay: dark mask outside ellipse + dashed outline */}
           <svg
             className="absolute inset-0 pointer-events-none"
-            style={{ width: displayW, height: displayH }}
+            width={displayW}
+            height={displayH}
+            style={{ width: "100%", height: "100%" }}
+            viewBox={`0 0 ${displayW} ${displayH}`}
           >
-            {/* Dark mask with circle cutout */}
             <defs>
-              <mask id="facemask">
-                <rect width="100%" height="100%" fill="white" />
-                <circle cx={fcx} cy={fcy} r={fr} fill="black" />
+              <mask id="silmask">
+                <rect width={displayW} height={displayH} fill="white" />
+                <ellipse cx={scx} cy={scy} rx={srx} ry={sry} fill="black" />
               </mask>
             </defs>
-            <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#facemask)" />
-            <circle cx={fcx} cy={fcy} r={fr} fill="none" stroke="#4ade80" strokeWidth="2" strokeDasharray="6 4" />
+            {/* Dark outside */}
+            <rect width={displayW} height={displayH} fill="rgba(0,0,0,0.5)" mask="url(#silmask)" />
+            {/* Dashed outline */}
+            <ellipse cx={scx} cy={scy} rx={srx} ry={sry}
+              fill="none" stroke="#4ade80" strokeWidth="2" strokeDasharray="8 5" />
           </svg>
         </div>
       </div>
 
-      {/* Zoom controls */}
-      <div className="flex items-center justify-center gap-4 py-4 flex-shrink-0 bg-gray-900 border-t border-gray-800">
-        <button onClick={() => zoom(0.85)} className="w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 text-white text-2xl flex items-center justify-center transition-colors">−</button>
-        <span className="text-sm text-gray-400 w-16 text-center">{Math.round(pScale * 100)}%</span>
-        <button onClick={() => zoom(1.15)} className="w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 text-white text-2xl flex items-center justify-center transition-colors">+</button>
+      {/* Scale slider */}
+      <div className="flex-shrink-0 bg-gray-900 border-t border-gray-800 px-6 py-4">
+        <div className="flex items-center gap-4">
+          <span className="text-lg text-gray-400 w-6 text-center">−</span>
+          <input
+            type="range"
+            min={0} max={100}
+            value={sliderVal}
+            onChange={e => {
+              const v = parseInt(e.target.value);
+              const newScale = 0.05 * Math.pow(20 / 0.05, v / 100);
+              handleSlider(newScale);
+            }}
+            className="flex-1 accent-green-500 h-2 cursor-pointer"
+          />
+          <span className="text-lg text-gray-400 w-6 text-center">+</span>
+        </div>
+        <p className="text-center text-xs text-gray-600 mt-1">{Math.round(scale * 100 / (1 / displayW * CARD_W))}% del tamaño real</p>
       </div>
     </div>
   );

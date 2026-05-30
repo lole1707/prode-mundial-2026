@@ -1,8 +1,12 @@
 export const CARD_W = 500;
 export const CARD_H = 700;
-export const FACE_CX = 0.47;
-export const FACE_CY = 0.17;
-export const FACE_R  = 0.18;
+
+// Full silhouette ellipse (head + body)
+export const SIL_CX = 0.47;
+export const SIL_CY = 0.37;
+export const SIL_RX = 0.38;
+export const SIL_RY = 0.35;
+
 export const INFO_Y  = 0.73;
 
 export interface PhotoTransform {
@@ -22,13 +26,17 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 function defaultTransform(photo: HTMLImageElement): PhotoTransform {
-  const fx = CARD_W * FACE_CX;
-  const fy = CARD_H * FACE_CY;
-  const fr = CARD_W * FACE_R;
-  const diameter = fr * 2;
-  const photoScale = diameter / photo.width;
-  const scaledH = photo.height * photoScale;
-  return { x: fx - fr, y: fy - fr, w: diameter, h: scaledH };
+  // Fill the silhouette ellipse bounding box, top-aligned
+  const cx = CARD_W * SIL_CX;
+  const cy = CARD_H * SIL_CY;
+  const rx = CARD_W * SIL_RX;
+  const ry = CARD_H * SIL_RY;
+  const bw = rx * 2;
+  const bh = ry * 2;
+  const scale = Math.max(bw / photo.width, bh / photo.height);
+  const pw = photo.width * scale;
+  const ph = photo.height * scale;
+  return { x: cx - rx + (bw - pw) / 2, y: cy - ry, w: pw, h: ph };
 }
 
 export async function buildCard(
@@ -52,14 +60,15 @@ export async function buildCard(
 
   ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
 
-  const fx = CARD_W * FACE_CX;
-  const fy = CARD_H * FACE_CY;
-  const fr = CARD_W * FACE_R;
+  const cx = CARD_W * SIL_CX;
+  const cy = CARD_H * SIL_CY;
+  const rx = CARD_W * SIL_RX;
+  const ry = CARD_H * SIL_RY;
   const t = transform ?? defaultTransform(photo);
 
   ctx.save();
   ctx.beginPath();
-  ctx.arc(fx, fy, fr, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   ctx.clip();
   ctx.drawImage(photo, t.x, t.y, t.w, t.h);
   ctx.restore();
