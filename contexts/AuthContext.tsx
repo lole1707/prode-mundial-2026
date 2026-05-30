@@ -65,12 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = data.user?.id;
     if (!uid) throw new Error("No se recibio ID de usuario");
 
-    const profileRes = await fetch(
-      `${supabaseUrl}/rest/v1/users?uid=eq.${uid}&select=display_name`,
-      { headers: { "apikey": supabaseKey } }
-    );
-    const profiles = profileRes.ok ? await profileRes.json() : [];
-    const raw: string = profiles?.[0]?.display_name ?? username;
+    const profileRes = await fetch(`/api/profile?uid=${uid}`);
+    const raw: string = profileRes.ok ? ((await profileRes.json()) ?? username) : username;
 
     const { displayName, profileCompleted, photo } = parseDisplayName(raw);
     const authUser: AuthUser = { uid, username, displayName, profileCompleted, photo };

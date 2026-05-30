@@ -12,6 +12,18 @@ function h(extra?: Record<string, string>) {
   };
 }
 
+export async function GET(req: NextRequest) {
+  const uid = new URL(req.url).searchParams.get("uid");
+  if (!uid) return NextResponse.json({ error: "Falta uid" }, { status: 400 });
+  const res = await fetch(`${DB_URL}/rest/v1/users?uid=eq.${uid}&select=display_name`, {
+    headers: h(),
+    cache: "no-store",
+  });
+  if (!res.ok) return NextResponse.json(null);
+  const rows: { display_name: string }[] = await res.json();
+  return NextResponse.json(rows[0]?.display_name ?? null);
+}
+
 export async function POST(req: NextRequest) {
   const { uid, nombre, apellido, apodo, edad, altura, sector, photo, newPassword } = await req.json();
   if (!uid || !nombre || !apellido || !apodo || !edad || !sector) {
