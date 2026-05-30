@@ -6,11 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Match, Prediction } from "@/lib/types";
 import { calculatePoints, ScoringConfig } from "@/lib/scoring";
 import { DEFAULTS } from "@/app/api/config/route";
-import { getDisplayName, getPhoto } from "@/lib/profile";
+import { getDisplayName, getPhoto, parseProfile } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 
-type MainTab = "resultados" | "pronosticos" | "posiciones";
+type MainTab = "resultados" | "pronosticos" | "posiciones" | "miperfil";
 
 const STAGES = [
   { key: "group", label: "Grupos" },
@@ -92,7 +92,7 @@ export default function Dashboard() {
   }, [user]);
 
   useEffect(() => {
-    if (tab !== "posiciones" || lbLoaded) return;
+    if ((tab !== "posiciones" && tab !== "miperfil") || lbLoaded) return;
     fetch("/api/admin/users")
       .then(r => r.json())
       .then((data: LeaderboardUser[]) => {
@@ -321,6 +321,132 @@ export default function Dashboard() {
         )}
       </div>
 
+        {/* MI PERFIL */}
+        {tab === "miperfil" && (() => {
+          const finishedWithPred = matches.filter(m => m.finished && m.homeScore !== null && predictions[m.id]);
+          const totalFinished = matches.filter(m => m.finished).length;
+          const totalPredicted = Object.keys(predictions).length;
+
+          let exactCount = 0, winnerCount = 0, zeroCount = 0, myPoints = 0;
+          for (const m of finishedWithPred) {
+            const pred = predictions[m.id];
+            const pts = calculatePoints(pred.homeScore, pred.awayScore, m.homeScore!, m.awayScore!, scoring);
+            myPoints += pts;
+            if (pts >= scoring.exact) exactCount++;
+            else if (pts > 0) winnerCount++;
+            else zeroCount++;
+          }
+
+          const myRank = lbLoaded ? lbUsers.findIndex(u => u.uid === user?.uid) + 1 : 0;
+          const myDbRow = lbUsers.find(u => u.uid === user?.uid);
+          const profile = myDbRow ? parseProfile(myDbRow.display_name) : null;
+          const photo = myDbRow ? getPhoto(myDbRow.display_name) : user?.photo;
+          const name = profile ? `${profile.nombre} ${profile.apellido}` : user?.displayName ?? "";
+          const apodo = profile?.apodo ?? user?.displayName ?? "";
+
+          const pct = finishedWithPred.length > 0 ? Math.round(((exactCount + winnerCount) / finishedWithPred.length) * 100) : 0;
+
+          return (
+            <div className="space-y-4">
+              {/* Profile card */}
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex items-center gap-5">
+                {photo
+                  ? <img src={photo} alt={apodo} className="w-20 h-20 rounded-full object-cover border-2 border-green-600 flex-shrink-0" />
+                  : <div className="w-20 h-20 rounded-full bg-gray-700 border-2 border-green-600 flex items-center justify-center text-3xl font-bold text-gray-300 flex-shrink-0">{apodo[0]?.toUpperCase() ?? "?"}</div>
+                }
+                <div className="min-w-0">
+                  <p className="text-xl font-bold text-white truncate">{apodo}</p>
+                  <p className="text-sm text-gray-400 truncate">{name}</p>
+                  {profile?.sector && (
+                    <span className="inline-block mt-1 text-xs font-semibold bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full">
+                      {profile.sector === "Administración" ? "🏢" : "🔧"} {profile.sector}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Ranking + Points */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                  <p className="text-xs text-gray-500 mb-1">Mi posición</p>
+                  <p className="text-3xl font-bold text-yellow-400">{myRank > 0 ? `#${myRank}` : "—"}</p>
+                  <p className="text-xs text-gray-600 mt-1">de {lbUsers.length} participantes</p>
+                </div>
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                  <p className="text-xs text-gray-500 mb-1">Mis puntos</p>
+                  <p className="text-3xl font-bold text-green-400">{myDbRow?.total_points ?? myPoints}</p>
+                  <p className="text-xs text-gray-600 mt-1">puntos totales</p>
+                </div>
+              </div>
+
+              {/* Prediction stats */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-4">Mis pronósticos</h2>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-gray-800 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-white">{totalPredicted}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Cargados</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-white">{finishedWithPred.length}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Jugados</p>
+                  </div>
+                  <div className="bg-green-900/40 border border-green-800 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-green-400">{exactCount}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Marcador exacto ✅</p>
+                  </div>
+                  <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-yellow-400">{winnerCount}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Ganador / empate ⭐</p>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                {finishedWithPred.length > 0 && (
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Aciertos</span>
+                      <span>{exactCount + winnerCount} de {finishedWithPred.length} ({pct}%)</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-green-500 to-yellow-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Scoring reference */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wide mb-3">Sistema de puntos</h2>
+                <div className="space-y-2">
+                  {[
+                    { label: "Marcador exacto", pts: scoring.exact, color: "text-green-400" },
+                    { label: "Ganador correcto", pts: scoring.winner, color: "text-yellow-400" },
+                    { label: "Empate correcto", pts: scoring.draw, color: "text-yellow-400" },
+                    { label: "Diferencia de goles", pts: scoring.goalDiff, color: "text-blue-400" },
+                  ].map(({ label, pts, color }) => (
+                    <div key={label} className="flex justify-between items-center py-1.5 border-b border-gray-800 last:border-0">
+                      <span className="text-sm text-gray-300">{label}</span>
+                      <span className={`font-bold text-sm ${color}`}>{pts} pts</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-600 mt-3">Se aplica solo el puntaje más alto que corresponda.</p>
+              </div>
+
+              {/* Partidos sin pronosticar */}
+              {totalFinished - finishedWithPred.length > 0 && (
+                <div className="bg-red-900/10 border border-red-800/30 rounded-xl p-4 text-center">
+                  <p className="text-sm text-red-400">
+                    {totalFinished - finishedWithPred.length} partido{totalFinished - finishedWithPred.length !== 1 ? "s" : ""} jugado{totalFinished - finishedWithPred.length !== 1 ? "s" : ""} sin pronóstico
+                  </p>
+                  <p className="text-xs text-gray-600 mt-0.5">No acumulaste puntos en {(totalFinished - finishedWithPred.length) * (scoring.exact)} pts potenciales</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
       {/* Bottom navigation bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-800 safe-area-pb">
         <div className="max-w-2xl mx-auto flex">
@@ -328,6 +454,7 @@ export default function Dashboard() {
             { key: "resultados",  label: "Resultados",  icon: "⚽" },
             { key: "pronosticos", label: "Pronósticos",  icon: "📝" },
             { key: "posiciones",  label: "Posiciones",   icon: "🏆" },
+            { key: "miperfil",    label: "Mi Perfil",    icon: "👤" },
           ] as { key: MainTab; label: string; icon: string }[]).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${tab === t.key ? "text-green-400" : "text-gray-500 hover:text-gray-300"}`}>
