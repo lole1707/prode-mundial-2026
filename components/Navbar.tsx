@@ -28,10 +28,9 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-6">
-          {navLink("/dashboard", "Pronósticos")}
-          {navLink("/leaderboard", "Tabla")}
-          {navLink("/dashboard/rules", "Reglas")}
           {isAdmin && navLink("/admin", "Admin")}
+          {isAdmin && navLink("/leaderboard", "Tabla")}
+          {isAdmin && navLink("/dashboard/rules", "Reglas")}
         </div>
 
         <div className="flex items-center gap-3">

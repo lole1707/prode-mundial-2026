@@ -10,9 +10,6 @@ import { getDisplayName, getPhoto } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-
 type MainTab = "resultados" | "pronosticos" | "posiciones";
 
 const STAGES = [
@@ -27,6 +24,17 @@ const STAGES = [
 const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
 
 interface LeaderboardUser { uid: string; display_name: string; total_points: number; }
+
+function Avatar({ photo, name, size }: { photo?: string; name: string; size: "lg" | "sm" }) {
+  if (size === "lg") {
+    return photo
+      ? <img src={photo} alt={name} className="w-24 h-24 rounded-full object-cover border-4 border-yellow-400 shadow-lg" />
+      : <div className="w-24 h-24 rounded-full bg-gray-700 border-4 border-yellow-400 flex items-center justify-center text-3xl font-bold text-gray-300">{name[0]?.toUpperCase() ?? "?"}</div>;
+  }
+  return photo
+    ? <img src={photo} alt={name} className="w-10 h-10 rounded-full object-cover border-2 border-gray-700 flex-shrink-0" />
+    : <div className="w-10 h-10 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center text-sm font-bold text-gray-300 flex-shrink-0">{name[0]?.toUpperCase() ?? "?"}</div>;
+}
 
 export default function Dashboard() {
   const { user, loading, isAdmin } = useAuth();
@@ -48,14 +56,12 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading && !user) router.push("/");
     if (!loading && user && !user.profileCompleted && !isAdmin) router.push("/profile");
-  }, [user, loading, router]);
+  }, [user, loading, router, isAdmin]);
 
   useEffect(() => {
+    if (!user) return;
     async function load() {
-      const [cfgRes, matchRes] = await Promise.all([
-        fetch("/api/config"),
-        fetch("/api/matches"),
-      ]);
+      const [cfgRes, matchRes] = await Promise.all([fetch("/api/config"), fetch("/api/matches")]);
       if (cfgRes.ok) setScoring(await cfgRes.json());
       if (matchRes.ok) {
         const data = await matchRes.json() as Record<string, unknown>[];
@@ -82,15 +88,20 @@ export default function Dashboard() {
         setPredictions(map);
       }
     }
-    if (user) load();
+    load();
   }, [user]);
 
   useEffect(() => {
-    if (tab === "posiciones" && !lbLoaded) {
-      fetch(`${SUPABASE_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid,display_name,total_points&order=total_points.desc`, {
-        headers: { "apikey": SUPABASE_KEY },
-      }).then(r => r.json()).then(data => { setLbUsers(data ?? []); setLbLoaded(true); });
-    }
+    if (tab !== "posiciones" || lbLoaded) return;
+    fetch("/api/admin/users")
+      .then(r => r.json())
+      .then((data: LeaderboardUser[]) => {
+        const sorted = (data ?? []).sort((a, b) =>
+          b.total_points - a.total_points || getDisplayName(a.display_name).localeCompare(getDisplayName(b.display_name))
+        );
+        setLbUsers(sorted);
+        setLbLoaded(true);
+      });
   }, [tab, lbLoaded]);
 
   async function savePrediction(matchId: string) {
@@ -122,30 +133,15 @@ export default function Dashboard() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-green-500" /></div>;
 
   const medals = ["🥇","🥈","🥉"];
+  const [lbFirst, ...lbRest] = lbUsers;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20">
       <Navbar />
-
-      {/* Tab bar */}
-      <div className="border-b border-gray-800 bg-gray-950 sticky top-14 z-40">
-        <div className="max-w-2xl mx-auto flex">
-          {([
-            { key: "resultados", label: "Resultados" },
-            { key: "pronosticos", label: "Mis pronósticos" },
-            { key: "posiciones", label: "Posiciones" },
-          ] as { key: MainTab; label: string }[]).map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`flex-1 py-3.5 text-sm font-semibold border-b-2 transition-colors ${tab === t.key ? "border-green-500 text-green-400" : "border-transparent text-gray-500 hover:text-gray-300"}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="max-w-2xl mx-auto px-4 py-5">
 
-        {/* Stage + Group selectors (for resultados and pronosticos) */}
+        {/* Stage + Group selectors */}
         {tab !== "posiciones" && (
           <>
             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -177,10 +173,7 @@ export default function Dashboard() {
               <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${m.finished ? "border-gray-700" : "border-gray-800"}`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs text-gray-500">{stage === "group" ? `Grupo ${m.group} · ` : ""}{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</span>
-                  {m.finished
-                    ? <span className="text-xs text-green-500 font-semibold">Finalizado</span>
-                    : <span className="text-xs text-gray-500">{m.venue}</span>
-                  }
+                  {m.finished ? <span className="text-xs text-green-500 font-semibold">Finalizado</span> : <span className="text-xs text-gray-500">{m.venue}</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 flex flex-col items-end gap-1">
@@ -190,8 +183,7 @@ export default function Dashboard() {
                   <div className="text-center min-w-[60px]">
                     {m.finished
                       ? <div className="text-2xl font-bold text-white">{m.homeScore} - {m.awayScore}</div>
-                      : <div className="text-sm text-gray-600 font-bold">vs</div>
-                    }
+                      : <div className="text-sm text-gray-600 font-bold">vs</div>}
                   </div>
                   <div className="flex-1 flex flex-col items-start gap-1">
                     <FlagImg flag={m.awayFlag} size={28} />
@@ -216,15 +208,12 @@ export default function Dashboard() {
               const pts = isFinished && pred ? calculatePoints(pred.homeScore, pred.awayScore, m.homeScore!, m.awayScore!, scoring) : null;
               const homeVal = draft?.home ?? (pred ? String(pred.homeScore) : "");
               const awayVal = draft?.away ?? (pred ? String(pred.awayScore) : "");
-
               return (
                 <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${isFinished ? "border-gray-700" : "border-gray-800"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs text-gray-500">{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</span>
                     {isFinished && pred && (
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pts! > 0 ? "bg-green-900/50 text-green-400" : "bg-gray-800 text-gray-500"}`}>
-                        {pts} pts
-                      </span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pts! > 0 ? "bg-green-900/50 text-green-400" : "bg-gray-800 text-gray-500"}`}>{pts} pts</span>
                     )}
                     {isPast && !isFinished && !pred && <span className="text-xs text-red-500">Sin pronóstico</span>}
                   </div>
@@ -247,12 +236,11 @@ export default function Dashboard() {
                             className="w-11 text-center bg-gray-800 border border-gray-700 rounded-lg py-1.5 text-white font-bold focus:outline-none focus:border-green-500" />
                         </div>
                       ) : (
-                        pred ? <div className="text-sm text-gray-400 font-semibold">{pred.homeScore} - {pred.awayScore}</div>
-                             : <div className="text-xs text-gray-600">—</div>
+                        pred
+                          ? <div className="text-sm text-gray-400 font-semibold">{pred.homeScore} - {pred.awayScore}</div>
+                          : <div className="text-xs text-gray-600">—</div>
                       )}
-                      {isFinished && pred && (
-                        <div className="text-xs text-gray-500">Pronóstico: {pred.homeScore}-{pred.awayScore}</div>
-                      )}
+                      {isFinished && pred && <div className="text-xs text-gray-500">Pronóstico: {pred.homeScore}-{pred.awayScore}</div>}
                     </div>
                     <div className="flex-1 flex flex-col items-start gap-1">
                       <FlagImg flag={m.awayFlag} size={28} />
@@ -279,46 +267,77 @@ export default function Dashboard() {
             {!lbLoaded ? (
               <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-green-500" /></div>
             ) : lbUsers.length === 0 ? (
-              <p className="text-gray-500 text-center py-12">Aún no hay posiciones.</p>
+              <p className="text-gray-500 text-center py-12">Aún no hay participantes.</p>
             ) : (
-              <div className="space-y-2">
-                {lbUsers.map((u, i) => {
-                  const name = getDisplayName(u.display_name);
-                  const photo = getPhoto(u.display_name);
-                  const isMe = u.uid === user?.uid;
+              <>
+                {/* 1st place hero */}
+                {lbFirst && (() => {
+                  const name = getDisplayName(lbFirst.display_name);
+                  const photo = getPhoto(lbFirst.display_name);
                   return (
-                    <div key={u.uid} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${isMe ? "bg-green-950/30 border-green-700" : "bg-gray-900 border-gray-800"}`}>
-                      <div className="w-8 text-center flex-shrink-0">
-                        {i < 3
-                          ? <span className="text-xl">{medals[i]}</span>
-                          : <span className="text-gray-500 text-sm font-bold">#{i+1}</span>
-                        }
-                      </div>
-                      {photo ? (
-                        <img src={photo} alt={name} className="w-10 h-10 rounded-full object-cover border border-gray-700 flex-shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-base font-bold text-gray-300 flex-shrink-0">
-                          {name[0]?.toUpperCase() ?? "?"}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-white">{name}</p>
-                          {isMe && <span className="text-xs text-green-400 font-medium">(vos)</span>}
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-2xl font-bold text-green-400">{u.total_points}</p>
-                        <p className="text-xs text-gray-500">pts</p>
-                      </div>
+                    <div className={`flex flex-col items-center bg-gray-900 border-2 rounded-2xl px-6 py-8 mb-5 ${lbFirst.uid === user?.uid ? "border-green-600" : "border-yellow-500/60"}`}>
+                      <span className="text-4xl mb-3">🥇</span>
+                      <Avatar photo={photo} name={name} size="lg" />
+                      <p className="mt-4 text-xl font-bold text-white">
+                        {name} {lbFirst.uid === user?.uid && <span className="text-sm text-green-400">(vos)</span>}
+                      </p>
+                      <p className="text-4xl font-bold text-green-400 mt-2">{lbFirst.total_points}</p>
+                      <p className="text-sm text-gray-500">pts</p>
                     </div>
                   );
-                })}
-              </div>
+                })()}
+
+                {/* Rest */}
+                <div className="space-y-2">
+                  {lbRest.map((u, i) => {
+                    const name = getDisplayName(u.display_name);
+                    const photo = getPhoto(u.display_name);
+                    const pos = i + 2;
+                    const isMe = u.uid === user?.uid;
+                    return (
+                      <div key={u.uid} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${isMe ? "bg-green-950/30 border-green-700" : "bg-gray-900 border-gray-800"}`}>
+                        <span className="w-8 text-center flex-shrink-0">
+                          {pos === 2 ? <span className="text-xl">🥈</span>
+                            : pos === 3 ? <span className="text-xl">🥉</span>
+                            : <span className="text-gray-500 text-sm font-medium">#{pos}</span>}
+                        </span>
+                        <Avatar photo={photo} name={name} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white truncate">
+                            {name} {isMe && <span className="text-xs text-green-400">(vos)</span>}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xl font-bold text-green-400">{u.total_points}</p>
+                          <p className="text-xs text-gray-500">pts</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         )}
       </div>
+
+      {/* Bottom navigation bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-800 safe-area-pb">
+        <div className="max-w-2xl mx-auto flex">
+          {([
+            { key: "resultados",  label: "Resultados",  icon: "⚽" },
+            { key: "pronosticos", label: "Pronósticos",  icon: "📝" },
+            { key: "posiciones",  label: "Posiciones",   icon: "🏆" },
+          ] as { key: MainTab; label: string; icon: string }[]).map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${tab === t.key ? "text-green-400" : "text-gray-500 hover:text-gray-300"}`}>
+              <span className="text-xl leading-none">{t.icon}</span>
+              <span className={`text-[11px] font-semibold ${tab === t.key ? "text-green-400" : "text-gray-500"}`}>{t.label}</span>
+              {tab === t.key && <span className="absolute bottom-0 w-12 h-0.5 bg-green-500 rounded-full" />}
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
