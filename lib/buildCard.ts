@@ -58,20 +58,17 @@ export async function buildCard(
     loadImage(photoSrc),
   ]);
 
-  ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
-
-  const cx = CARD_W * SIL_CX;
-  const cy = CARD_H * SIL_CY;
-  const rx = CARD_W * SIL_RX;
-  const ry = CARD_H * SIL_RY;
   const t = transform ?? defaultTransform(photo);
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.clip();
+  // Draw photo first (behind everything)
   ctx.drawImage(photo, t.x, t.y, t.w, t.h);
-  ctx.restore();
+
+  // Draw template on top with multiply blend:
+  // — dark silhouette stays dark (frames the photo)
+  // — light/teal areas tint the photo giving the sticker look
+  ctx.globalCompositeOperation = "multiply";
+  ctx.drawImage(template, 0, 0, CARD_W, CARD_H);
+  ctx.globalCompositeOperation = "source-over";
 
   const bandY = CARD_H * INFO_Y;
   const bandH = CARD_H - bandY;

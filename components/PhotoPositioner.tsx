@@ -173,10 +173,7 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
           onMouseLeave={stopDrag}
           onWheel={onWheel}
         >
-          {/* Template */}
-          <img src="/card-template.jpg" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" />
-
-          {/* Photo */}
+          {/* Photo — behind template */}
           {ready && (
             <img
               src={photoSrc}
@@ -196,29 +193,28 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
                 userSelect: "none",
                 pointerEvents: "all",
                 cursor: "grab",
+                zIndex: 1,
               }}
             />
           )}
 
-          {/* Guide overlay: dark mask outside ellipse + dashed outline */}
+          {/* Template on top with multiply — dark silhouette frames the photo,
+              card design overlays it naturally */}
+          <img
+            src="/card-template.jpg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+            style={{ zIndex: 2, mixBlendMode: "multiply" }}
+          />
+
+          {/* Dashed guide showing silhouette ellipse boundary */}
           <svg
             className="absolute inset-0 pointer-events-none"
-            width={displayW}
-            height={displayH}
-            style={{ width: "100%", height: "100%" }}
+            style={{ width: "100%", height: "100%", zIndex: 3 }}
             viewBox={`0 0 ${displayW} ${displayH}`}
           >
-            <defs>
-              <mask id="silmask">
-                <rect width={displayW} height={displayH} fill="white" />
-                <ellipse cx={scx} cy={scy} rx={srx} ry={sry} fill="black" />
-              </mask>
-            </defs>
-            {/* Dark outside */}
-            <rect width={displayW} height={displayH} fill="rgba(0,0,0,0.5)" mask="url(#silmask)" />
-            {/* Dashed outline */}
             <ellipse cx={scx} cy={scy} rx={srx} ry={sry}
-              fill="none" stroke="#4ade80" strokeWidth="2" strokeDasharray="8 5" />
+              fill="none" stroke="rgba(74,222,128,0.6)" strokeWidth="1.5" strokeDasharray="8 5" />
           </svg>
         </div>
       </div>
