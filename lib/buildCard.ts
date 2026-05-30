@@ -1,9 +1,16 @@
-const CARD_W = 500;
-const CARD_H = 700;
-const FACE_CX = 0.47;
-const FACE_CY = 0.17;
-const FACE_R  = 0.18;
-const INFO_Y  = 0.73;
+export const CARD_W = 500;
+export const CARD_H = 700;
+export const FACE_CX = 0.47;
+export const FACE_CY = 0.17;
+export const FACE_R  = 0.18;
+export const INFO_Y  = 0.73;
+
+export interface PhotoTransform {
+  x: number;      // photo left edge in canvas pixels
+  y: number;      // photo top edge in canvas pixels
+  w: number;      // drawn width in canvas pixels
+  h: number;      // drawn height in canvas pixels
+}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => {
@@ -14,13 +21,24 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function defaultTransform(photo: HTMLImageElement): PhotoTransform {
+  const fx = CARD_W * FACE_CX;
+  const fy = CARD_H * FACE_CY;
+  const fr = CARD_W * FACE_R;
+  const diameter = fr * 2;
+  const photoScale = diameter / photo.width;
+  const scaledH = photo.height * photoScale;
+  return { x: fx - fr, y: fy - fr, w: diameter, h: scaledH };
+}
+
 export async function buildCard(
   photoSrc: string,
   apellido: string,
   nombre: string,
   edad: string,
   altura: string,
-  sector: string
+  sector: string,
+  transform?: PhotoTransform
 ): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = CARD_W;
@@ -37,15 +55,13 @@ export async function buildCard(
   const fx = CARD_W * FACE_CX;
   const fy = CARD_H * FACE_CY;
   const fr = CARD_W * FACE_R;
+  const t = transform ?? defaultTransform(photo);
 
   ctx.save();
   ctx.beginPath();
   ctx.arc(fx, fy, fr, 0, Math.PI * 2);
   ctx.clip();
-  const diameter = fr * 2;
-  const photoScale = diameter / photo.width;
-  const scaledH = photo.height * photoScale;
-  ctx.drawImage(photo, fx - fr, fy - fr, diameter, scaledH);
+  ctx.drawImage(photo, t.x, t.y, t.w, t.h);
   ctx.restore();
 
   const bandY = CARD_H * INFO_Y;

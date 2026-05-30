@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { buildCard } from "@/lib/buildCard";
+import { buildCard, PhotoTransform } from "@/lib/buildCard";
+import PhotoPositioner from "@/components/PhotoPositioner";
 
 export default function ProfilePage() {
   const { user, loading, completeProfile } = useAuth();
@@ -19,6 +20,8 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
+  const [photoTransform, setPhotoTransform] = useState<PhotoTransform | undefined>();
+  const [positioning, setPositioning] = useState(false);
   const [cardPreview, setCardPreview] = useState("");
   const [cardReady, setCardReady] = useState(false);
   const [compositing, setCompositing] = useState(false);
@@ -38,14 +41,16 @@ export default function ProfilePage() {
     setPhotoPreview(URL.createObjectURL(file));
     setCardPreview("");
     setCardReady(false);
+    setPhotoTransform(undefined);
+    setPositioning(true); // open positioner immediately
   }
 
   useEffect(() => {
-    if (!photoPreview) return;
+    if (!photoPreview || positioning) return;
     setCompositing(true);
     const t = setTimeout(async () => {
       try {
-        const blob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector);
+        const blob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector, photoTransform);
         setCardPreview(URL.createObjectURL(blob));
         setCardReady(true);
       } catch {
@@ -55,7 +60,7 @@ export default function ProfilePage() {
       }
     }, 600);
     return () => { clearTimeout(t); setCompositing(false); };
-  }, [photoPreview, apellido, nombre, edad, altura, sector]);
+  }, [photoPreview, apellido, nombre, edad, altura, sector, photoTransform, positioning]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +75,7 @@ export default function ProfilePage() {
       let photoUrl: string | undefined;
       if (photoPreview) {
         let uploadBlob: Blob;
-        try { uploadBlob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector); }
+        try { uploadBlob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector, photoTransform); }
         catch { uploadBlob = photoFile!; }
         const fd = new FormData();
         fd.append("file", new File([uploadBlob], "avatar.jpg", { type: "image/jpeg" }));
@@ -98,6 +103,16 @@ export default function ProfilePage() {
   const displaySrc = cardReady ? cardPreview : photoPreview;
   const isCard = cardReady && !compositing;
 
+  if (positioning && photoPreview) {
+    return (
+      <PhotoPositioner
+        photoSrc={photoPreview}
+        onConfirm={(t) => { setPhotoTransform(t); setPositioning(false); }}
+        onCancel={() => { setPositioning(false); }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
@@ -124,6 +139,11 @@ export default function ProfilePage() {
             </button>
             {isCard && <p className="text-xs text-green-400">Tu figurita del Mundial 🃏</p>}
             {compositing && photoPreview && <p className="text-xs text-gray-500">Generando figurita...</p>}
+            {photoPreview && !compositing && (
+              <button type="button" onClick={() => setPositioning(true)} className="text-xs text-gray-400 hover:text-white underline">
+                Ajustar posición de la foto
+              </button>
+            )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
           <div className="grid grid-cols-2 gap-3">

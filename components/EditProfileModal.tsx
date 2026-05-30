@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { buildCard } from "@/lib/buildCard";
+import { buildCard, PhotoTransform } from "@/lib/buildCard";
+import PhotoPositioner from "@/components/PhotoPositioner";
 import { UserProfile } from "@/lib/profile";
 
 interface Props {
@@ -27,6 +28,8 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState(current.photo ?? "");
+  const [photoTransform, setPhotoTransform] = useState<PhotoTransform | undefined>();
+  const [positioning, setPositioning] = useState(false);
   const [cardPreview, setCardPreview] = useState("");
   const [cardReady, setCardReady] = useState(false);
   const [compositing, setCompositing] = useState(false);
@@ -37,11 +40,11 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
 
   // Rebuild card preview on field changes
   useEffect(() => {
-    if (!photoPreview) return;
+    if (!photoPreview || positioning) return;
     setCompositing(true);
     const t = setTimeout(async () => {
       try {
-        const blob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector);
+        const blob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector, photoTransform);
         setCardPreview(URL.createObjectURL(blob));
         setCardReady(true);
       } catch {
@@ -51,7 +54,7 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
       }
     }, 600);
     return () => { clearTimeout(t); setCompositing(false); };
-  }, [photoPreview, apellido, nombre, edad, altura, sector]);
+  }, [photoPreview, apellido, nombre, edad, altura, sector, photoTransform, positioning]);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -60,6 +63,8 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
     setPhotoPreview(URL.createObjectURL(file));
     setCardPreview("");
     setCardReady(false);
+    setPhotoTransform(undefined);
+    setPositioning(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -75,7 +80,7 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
 
       if (photoFile) {
         let uploadBlob: Blob;
-        try { uploadBlob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector); }
+        try { uploadBlob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector, photoTransform); }
         catch { uploadBlob = photoFile; }
         const fd = new FormData();
         fd.append("file", new File([uploadBlob], "avatar.jpg", { type: "image/jpeg" }));
@@ -107,6 +112,16 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
   const displaySrc = cardReady ? cardPreview : photoPreview;
   const isCard = cardReady && !compositing;
 
+  if (positioning && photoPreview) {
+    return (
+      <PhotoPositioner
+        photoSrc={photoPreview}
+        onConfirm={(t) => { setPhotoTransform(t); setPositioning(false); }}
+        onCancel={() => setPositioning(false)}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center overflow-y-auto py-6 px-4">
       <div className="w-full max-w-md bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl">
@@ -135,6 +150,11 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
             </button>
             {isCard && <p className="text-xs text-green-400">Figurita actualizada 🃏</p>}
             {compositing && <p className="text-xs text-gray-500">Generando figurita...</p>}
+            {photoPreview && !compositing && (
+              <button type="button" onClick={() => setPositioning(true)} className="text-xs text-gray-400 hover:text-white underline">
+                Ajustar posición
+              </button>
+            )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
 
