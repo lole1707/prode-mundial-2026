@@ -14,7 +14,14 @@ import FlagImg from "@/components/FlagImg";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
-type Tab = "fixture" | "users" | "scoring";
+type Tab = "fixture" | "users" | "scoring" | "monitor";
+
+interface MonitorData {
+  tables: { users: number; matches: number; predictions: number };
+  storage: { count: number; sizeBytes: number; files: { name: string; size: number }[] };
+  supabaseProject: string;
+  timestamp: string;
+}
 
 interface DBUser { uid: string; display_name: string; total_points: number; }
 
@@ -44,6 +51,8 @@ export default function AdminPage() {
   const [scoringMsg, setScoringMsg] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [monitor, setMonitor] = useState<MonitorData | null>(null);
+  const [monitorLoading, setMonitorLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/dashboard");
@@ -221,11 +230,17 @@ export default function AdminPage() {
       <Navbar />
       <div className="max-w-3xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">Panel de Admin</h1>
-        <div className="flex gap-2 mb-6 bg-gray-800 p-1 rounded-xl w-fit">
-          {(["fixture","users","scoring"] as Tab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)}
+        <div className="flex flex-wrap gap-2 mb-6 bg-gray-800 p-1 rounded-xl w-fit">
+          {(["fixture","users","scoring","monitor"] as Tab[]).map(t => (
+            <button key={t} onClick={() => {
+              setTab(t);
+              if (t === "monitor" && !monitor) {
+                setMonitorLoading(true);
+                fetch("/api/admin/monitor").then(r => r.json()).then(d => { setMonitor(d); setMonitorLoading(false); });
+              }
+            }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-green-600 text-white" : "text-gray-400 hover:text-white"}`}>
-              {t === "fixture" ? "Fixture y Resultados" : t === "users" ? "Usuarios" : "Puntajes"}
+              {t === "fixture" ? "Fixture" : t === "users" ? "Usuarios" : t === "scoring" ? "Puntajes" : "📊 Monitor"}
             </button>
           ))}
         </div>
@@ -329,6 +344,102 @@ export default function AdminPage() {
               })}
             </div>
           </>
+        )}
+
+        {tab === "monitor" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Monitor Supabase</h2>
+              <button onClick={() => { setMonitorLoading(true); fetch("/api/admin/monitor").then(r => r.json()).then(d => { setMonitor(d); setMonitorLoading(false); }); }}
+                className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-lg transition-colors">
+                {monitorLoading ? "Actualizando..." : "↻ Actualizar"}
+              </button>
+            </div>
+
+            {monitorLoading && !monitor && (
+              <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-green-500" /></div>
+            )}
+
+            {monitor && (() => {
+              const fmt = (b: number) => b < 1024 ? `${b} B` : b < 1024*1024 ? `${(b/1024).toFixed(1)} KB` : `${(b/1024/1024).toFixed(2)} MB`;
+              const storageLimit = 1024 * 1024 * 1024; // 1 GB free plan
+              const storagePct = Math.min((monitor.storage.sizeBytes / storageLimit) * 100, 100);
+              const projectRef = monitor.supabaseProject.replace("https://", "").replace(".supabase.co", "");
+              const updatedAt = new Date(monitor.timestamp).toLocaleTimeString("es-AR");
+
+              return (
+                <>
+                  {/* DB rows */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-4">Base de datos</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {[
+                        { label: "Usuarios", val: monitor.tables.users, icon: "👥" },
+                        { label: "Partidos", val: monitor.tables.matches, icon: "⚽" },
+                        { label: "Pronósticos", val: monitor.tables.predictions, icon: "📝" },
+                      ].map(({ label, val, icon }) => (
+                        <div key={label} className="bg-gray-800 rounded-xl p-3 text-center">
+                          <div className="text-xl mb-1">{icon}</div>
+                          <p className="text-2xl font-bold text-white">{val}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Storage */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-4">Storage · Bucket avatars</h3>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-gray-800 rounded-xl p-3 text-center">
+                        <p className="text-2xl font-bold text-white">{monitor.storage.count}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Archivos</p>
+                      </div>
+                      <div className="bg-gray-800 rounded-xl p-3 text-center">
+                        <p className="text-2xl font-bold text-white">{fmt(monitor.storage.sizeBytes)}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Tamaño total</p>
+                      </div>
+                    </div>
+                    <div className="mb-1 flex justify-between text-xs text-gray-500">
+                      <span>Uso de storage (plan gratis: 1 GB)</span>
+                      <span>{storagePct.toFixed(2)}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${storagePct > 80 ? "bg-red-500" : storagePct > 50 ? "bg-yellow-500" : "bg-green-500"}`}
+                        style={{ width: `${Math.max(storagePct, 0.5)}%` }} />
+                    </div>
+                    {monitor.storage.files.length > 0 && (
+                      <details className="mt-4">
+                        <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-300">Ver archivos ({monitor.storage.files.length})</summary>
+                        <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                          {monitor.storage.files.map(f => (
+                            <div key={f.name} className="flex justify-between text-xs text-gray-400 bg-gray-800 px-3 py-1.5 rounded-lg">
+                              <span className="truncate mr-2">{f.name}</span>
+                              <span className="flex-shrink-0">{fmt(f.size)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+
+                  {/* Egress — link to Supabase dashboard */}
+                  <div className="bg-gray-900 border border-yellow-800/40 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3">Egress (transferencia)</h3>
+                    <p className="text-xs text-gray-500 mb-3">El egress exacto se monitorea en el panel de Supabase. Plan gratis: 5 GB/mes.</p>
+                    <a
+                      href={`https://supabase.com/dashboard/project/${projectRef}/settings/billing`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 px-4 py-2 rounded-lg transition-colors">
+                      📈 Ver egress en Supabase →
+                    </a>
+                  </div>
+
+                  <p className="text-xs text-gray-600 text-right">Última actualización: {updatedAt}</p>
+                </>
+              );
+            })()}
+          </div>
         )}
 
         {tab === "scoring" && (
