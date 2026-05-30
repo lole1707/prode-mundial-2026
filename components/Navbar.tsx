@@ -30,6 +30,7 @@ export default function Navbar() {
         <div className="flex items-center gap-6">
           {navLink("/dashboard", "Pronósticos")}
           {navLink("/leaderboard", "Tabla")}
+          {navLink("/dashboard/rules", "Reglas")}
           {isAdmin && navLink("/admin", "Admin")}
         </div>
 
