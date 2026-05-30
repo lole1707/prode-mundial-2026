@@ -9,6 +9,7 @@ import { DEFAULTS } from "@/app/api/config/route";
 import { getDisplayName, getPhoto, parseProfile } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
+import EditProfileModal from "@/components/EditProfileModal";
 
 type MainTab = "resultados" | "pronosticos" | "posiciones" | "miperfil";
 
@@ -37,7 +38,7 @@ function Avatar({ photo, name, size }: { photo?: string; name: string; size: "lg
 }
 
 export default function Dashboard() {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, completeProfile } = useAuth();
   const router = useRouter();
 
   const [tab, setTab] = useState<MainTab>("pronosticos");
@@ -52,6 +53,7 @@ export default function Dashboard() {
 
   const [lbUsers, setLbUsers] = useState<LeaderboardUser[]>([]);
   const [lbLoaded, setLbLoaded] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -356,7 +358,7 @@ export default function Dashboard() {
                   ? <img src={photo} alt={apodo} className="w-20 h-20 rounded-full object-cover border-2 border-green-600 flex-shrink-0" />
                   : <div className="w-20 h-20 rounded-full bg-gray-700 border-2 border-green-600 flex items-center justify-center text-3xl font-bold text-gray-300 flex-shrink-0">{apodo[0]?.toUpperCase() ?? "?"}</div>
                 }
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-xl font-bold text-white truncate">{apodo}</p>
                   <p className="text-sm text-gray-400 truncate">{name}</p>
                   {profile?.sector && (
@@ -365,7 +367,25 @@ export default function Dashboard() {
                     </span>
                   )}
                 </div>
+                {profile && (
+                  <button onClick={() => setEditingProfile(true)}
+                    className="flex-shrink-0 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-lg transition-colors">
+                    ✎ Editar
+                  </button>
+                )}
               </div>
+
+              {/* Edit modal */}
+              {editingProfile && profile && (
+                <EditProfileModal
+                  current={profile}
+                  onClose={() => setEditingProfile(false)}
+                  onSaved={(newApodo, newPhoto) => {
+                    completeProfile(newApodo, newPhoto);
+                    setLbLoaded(false); // refresh leaderboard data
+                  }}
+                />
+              )}
 
               {/* Ranking + Points */}
               <div className="grid grid-cols-2 gap-3">
