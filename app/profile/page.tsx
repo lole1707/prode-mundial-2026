@@ -105,10 +105,12 @@ export default function ProfilePage() {
   const [edad, setEdad] = useState("");
   const [altura, setAltura] = useState("");
   const [sector, setSector] = useState<"Administración" | "Taller" | "">("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
-  const [cardPreview, setCardPreview] = useState("");   // blob URL of composited card
-  const [cardReady, setCardReady] = useState(false);    // true once compositing succeeded
+  const [cardPreview, setCardPreview] = useState("");
+  const [cardReady, setCardReady] = useState(false);
   const [compositing, setCompositing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -153,6 +155,9 @@ export default function ProfilePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!sector) { setError("Elegí un sector"); return; }
+    if (!newPassword) { setError("Tenés que elegir una contraseña nueva"); return; }
+    if (newPassword.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
+    if (newPassword !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
     if (!user) return;
     setSaving(true);
     setError("");
@@ -181,7 +186,7 @@ export default function ProfilePage() {
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid, nombre, apellido, apodo, edad, altura, sector, photo: photoUrl }),
+        body: JSON.stringify({ uid: user.uid, nombre, apellido, apodo, edad, altura, sector, photo: photoUrl, newPassword }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error al guardar");
 
@@ -254,6 +259,13 @@ export default function ProfilePage() {
             <input type="number" value={edad} onChange={e => setEdad(e.target.value)} required min={1} max={99} placeholder="Edad"
               className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
             <input type="text" value={altura} onChange={e => setAltura(e.target.value)} placeholder="Altura (ej: 1.74)"
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="Contraseña nueva"
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
+            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="Confirmar contraseña"
               className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
           </div>
 

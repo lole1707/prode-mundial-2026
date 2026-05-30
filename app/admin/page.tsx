@@ -42,6 +42,8 @@ export default function AdminPage() {
   const [createMsg, setCreateMsg] = useState("");
   const [scoring, setScoring] = useState<ScoringConfig>(DEFAULTS);
   const [scoringMsg, setScoringMsg] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/dashboard");
@@ -156,6 +158,22 @@ export default function AdminPage() {
     alert("Puntajes recalculados.");
   }
 
+  async function deleteUser(uid: string) {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, adminUid: user?.uid }),
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error); return; }
+      setUsers(prev => prev.filter(u => u.uid !== uid));
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  }
+
   async function saveScoring(e: React.FormEvent) {
     e.preventDefault();
     setScoringMsg("");
@@ -231,17 +249,35 @@ export default function AdminPage() {
               {users.map(u => {
                 const name = getDisplayName(u.display_name);
                 const photo = getPhoto(u.display_name);
+                const isConfirming = confirmDelete === u.uid;
                 return (
-                  <div key={u.uid} className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
-                    {photo ? (
-                      <img src={photo} alt={name} className="w-8 h-8 rounded-full object-cover border border-gray-700 flex-shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-400 flex-shrink-0">
-                        {name[0]?.toUpperCase() ?? "?"}
-                      </div>
-                    )}
-                    <p className="font-medium flex-1">{name}</p>
-                    <span className="text-green-400 font-bold">{u.total_points} pts</span>
+                  <div key={u.uid} className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {photo ? (
+                        <img src={photo} alt={name} className="w-8 h-8 rounded-full object-cover border border-gray-700 flex-shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-400 flex-shrink-0">
+                          {name[0]?.toUpperCase() ?? "?"}
+                        </div>
+                      )}
+                      <p className="font-medium flex-1">{name}</p>
+                      <span className="text-green-400 font-bold mr-2">{u.total_points} pts</span>
+                      {!isConfirming ? (
+                        <button onClick={() => setConfirmDelete(u.uid)} className="text-xs text-gray-500 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-900/20">
+                          🗑
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-red-400">¿Borrar?</span>
+                          <button onClick={() => deleteUser(u.uid)} disabled={deleting} className="text-xs bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white px-2 py-1 rounded">
+                            {deleting ? "..." : "Sí"}
+                          </button>
+                          <button onClick={() => setConfirmDelete(null)} className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded">
+                            No
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}

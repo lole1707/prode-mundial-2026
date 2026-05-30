@@ -13,9 +13,19 @@ function h(extra?: Record<string, string>) {
 }
 
 export async function POST(req: NextRequest) {
-  const { uid, nombre, apellido, apodo, edad, altura, sector, photo } = await req.json();
+  const { uid, nombre, apellido, apodo, edad, altura, sector, photo, newPassword } = await req.json();
   if (!uid || !nombre || !apellido || !apodo || !edad || !sector) {
     return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+  }
+
+  // Update password if provided
+  if (newPassword) {
+    const pwRes = await fetch(`${DB_URL}/auth/v1/admin/users/${uid}`, {
+      method: "PUT",
+      headers: h(),
+      body: JSON.stringify({ password: newPassword }),
+    });
+    if (!pwRes.ok) return NextResponse.json({ error: await pwRes.text() }, { status: pwRes.status });
   }
   const profileData = { nombre, apellido, apodo, edad, altura: altura ?? "", sector, ...(photo ? { photo } : {}) };
   const display_name = JSON.stringify(profileData);
