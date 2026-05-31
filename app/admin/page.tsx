@@ -136,23 +136,28 @@ export default function AdminPage() {
     const home = parseInt(draft.home), away = parseInt(draft.away);
     if (isNaN(home) || isNaN(away)) return;
     setSaving(matchId);
-    await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
-      method: "PATCH",
-      headers: apiHeaders(),
-      body: JSON.stringify({ home_score: home, away_score: away, finished: true }),
-    });
-    setMatches(prev => prev.map(m => m.id === matchId ? { ...m, homeScore: home, awayScore: away, finished: true } : m));
-    setDrafts(prev => { const n = { ...prev }; delete n[matchId]; return n; });
-    setSaving(null);
 
-    // Auto-recalculate after every result — no need to press the button
-    fetch("/api/admin/recalculate", {
+    const res = await fetch("/api/admin/save-result", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminUid: user?.uid, scoring }),
-    }).then(r => r.json()).then(data => {
-      if (data.ok) fetch("/api/admin/users").then(r => r.json()).then(d => setUsers(d ?? []));
+      body: JSON.stringify({ adminUid: user?.uid, matches: [{ id: matchId, home, away, finished: true }] }),
     });
+
+    if (res.ok) {
+      setMatches(prev => prev.map(m => m.id === matchId ? { ...m, homeScore: home, awayScore: away, finished: true } : m));
+      setDrafts(prev => { const n = { ...prev }; delete n[matchId]; return n; });
+      // Auto-recalculate
+      fetch("/api/admin/recalculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid: user?.uid, scoring }),
+      }).then(r => r.json()).then(d => {
+        if (d.ok) fetch("/api/admin/users").then(r => r.json()).then(u => setUsers(u ?? []));
+      });
+    } else {
+      alert("Error al guardar resultado");
+    }
+    setSaving(null);
   }
 
   async function recalculateAll() {
@@ -186,14 +191,13 @@ export default function AdminPage() {
     const targets = matches.filter(m => m.stage === "group").slice(0, 8);
     if (targets.length === 0) { setSimMsg("✗ Cargá el fixture primero"); setSimulating(false); return; }
     try {
-      for (let i = 0; i < targets.length; i++) {
-        const m = targets[i];
-        const s = SIM_SCORES[i];
-        await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${m.id}`, {
-          method: "PATCH", headers: apiHeaders(),
-          body: JSON.stringify({ home_score: s.home, away_score: s.away, finished: true }),
-        });
-      }
+      const payload = targets.map((m, i) => ({ id: m.id, home: SIM_SCORES[i].home, away: SIM_SCORES[i].away, finished: true }));
+      const saveRes = await fetch("/api/admin/save-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid: user?.uid, matches: payload }),
+      });
+      if (!saveRes.ok) throw new Error(await saveRes.text());
       setMatches(prev => prev.map(m => {
         const idx = targets.findIndex(t => t.id === m.id);
         if (idx < 0) return m;
@@ -214,12 +218,12 @@ export default function AdminPage() {
     setSimulating(true); setSimMsg("");
     const targets = matches.filter(m => m.stage === "group" && m.finished).slice(0, 8);
     try {
-      for (const m of targets) {
-        await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${m.id}`, {
-          method: "PATCH", headers: apiHeaders(),
-          body: JSON.stringify({ home_score: null, away_score: null, finished: false }),
-        });
-      }
+      const payload = targets.map(m => ({ id: m.id, home: null as unknown as number, away: null as unknown as number, finished: false }));
+      await fetch("/api/admin/save-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid: user?.uid, matches: payload }),
+      });
       setMatches(prev => prev.map(m =>
         targets.find(t => t.id === m.id) ? { ...m, homeScore: null as unknown as number, awayScore: null as unknown as number, finished: false } : m
       ));
