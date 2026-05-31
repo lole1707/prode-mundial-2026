@@ -66,7 +66,7 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!sector) { setError("Elegí un sector"); return; }
     if (!newPassword) { setError("Tenés que elegir una contraseña nueva"); return; }
-    if (newPassword.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
+    if (newPassword.length < 4) { setError("La contraseña debe tener al menos 4 caracteres"); return; }
     if (newPassword !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
     if (!user) return;
     setSaving(true);

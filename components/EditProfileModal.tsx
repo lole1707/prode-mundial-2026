@@ -70,7 +70,7 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!sector) { setError("Elegí un sector"); return; }
-    if (newPassword && newPassword.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
+    if (newPassword && newPassword.length < 4) { setError("La contraseña debe tener al menos 4 caracteres"); return; }
     if (newPassword && newPassword !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
     if (!user) return;
     setSaving(true);

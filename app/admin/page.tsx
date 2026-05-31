@@ -320,9 +320,9 @@ export default function AdminPage() {
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
               <h2 className="text-lg font-semibold mb-4">Crear usuario</h2>
               <form onSubmit={createUser} className="space-y-3">
-                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} required placeholder="Nombre o apodo" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
+                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} required placeholder="Nombre y Apellido" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} required placeholder="Usuario (ej: pedro)" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
-                <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} placeholder="Contraseña" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
+                <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={4} placeholder="Contraseña (mín. 4 caracteres)" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <select value={newGrupo} onChange={e => setNewGrupo(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500">
                   <option value="">— Grupo (opcional) —</option>
                   {["Prowork","Familia","Amigos","Otros 1","Otros 2","Otros 3"].map(g => (
