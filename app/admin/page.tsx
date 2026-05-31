@@ -144,6 +144,15 @@ export default function AdminPage() {
     setMatches(prev => prev.map(m => m.id === matchId ? { ...m, homeScore: home, awayScore: away, finished: true } : m));
     setDrafts(prev => { const n = { ...prev }; delete n[matchId]; return n; });
     setSaving(null);
+
+    // Auto-recalculate after every result — no need to press the button
+    fetch("/api/admin/recalculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminUid: user?.uid, scoring }),
+    }).then(r => r.json()).then(data => {
+      if (data.ok) fetch("/api/admin/users").then(r => r.json()).then(d => setUsers(d ?? []));
+    });
   }
 
   async function recalculateAll() {
@@ -190,7 +199,13 @@ export default function AdminPage() {
         if (idx < 0) return m;
         return { ...m, homeScore: SIM_SCORES[idx].home, awayScore: SIM_SCORES[idx].away, finished: true };
       }));
-      setSimMsg(`✓ ${targets.length} partidos con resultados de prueba. Ahora los usuarios pueden pronosticar y vos recalculás puntajes.`);
+      // Auto-recalculate
+      await fetch("/api/admin/recalculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid: user?.uid, scoring }),
+      });
+      setSimMsg(`✓ ${targets.length} partidos cargados y puntajes recalculados automáticamente.`);
     } catch { setSimMsg("✗ Error al simular"); }
     setSimulating(false);
   }
