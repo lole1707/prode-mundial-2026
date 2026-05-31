@@ -52,12 +52,32 @@ export default function RulesPage() {
 
           <div className="space-y-2 mb-5">
             <div className="flex justify-between items-center py-2 border-b border-gray-800">
-              <span className="text-gray-300">Resultado correcto</span>
-              <span className="font-bold text-white">2 pts</span>
+              <div>
+                <span className="text-gray-300">Marcador exacto</span>
+                <span className="text-xs text-gray-500 block">Ganador o empate exacto</span>
+              </div>
+              <span className="font-bold text-green-400">3 pts</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-800">
-              <span className="text-gray-300">+ Marcador exacto</span>
-              <span className="font-bold text-green-400">+1 pt</span>
+              <div>
+                <span className="text-gray-300">Ganador correcto</span>
+                <span className="text-xs text-gray-500 block">Acertás quién gana</span>
+              </div>
+              <span className="font-bold text-white">1 pt</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-800">
+              <div>
+                <span className="text-gray-300">+ Diferencia de goles correcta</span>
+                <span className="text-xs text-gray-500 block">Se suma al ganador correcto</span>
+              </div>
+              <span className="font-bold text-yellow-400">+1 pt</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-800">
+              <div>
+                <span className="text-gray-300">Empate correcto</span>
+                <span className="text-xs text-gray-500 block">Predijiste empate y empataron</span>
+              </div>
+              <span className="font-bold text-white">1 pt</span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="text-gray-400 font-medium">Máximo por partido</span>
@@ -69,9 +89,11 @@ export default function RulesPage() {
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Ejemplos</p>
             <div className="space-y-2">
               {[
-                { pred: "2-0 → 2-0", pts: "3 pts", color: "text-green-400", desc: "Exacto" },
-                { pred: "1-0 → 2-0", pts: "2 pts", color: "text-yellow-400", desc: "Ganador correcto" },
-                { pred: "X → 2-0", pts: "0 pts", color: "text-gray-500", desc: "Sin puntos" },
+                { pred: "2-0 → 2-0", pts: "3 pts", color: "text-green-400", desc: "Marcador exacto" },
+                { pred: "2-1 → 3-2", pts: "2 pts", color: "text-yellow-400", desc: "Ganador + misma diferencia" },
+                { pred: "1-0 → 3-0", pts: "1 pt",  color: "text-blue-400",   desc: "Ganador correcto" },
+                { pred: "0-0 → 1-1", pts: "1 pt",  color: "text-blue-400",   desc: "Empate correcto" },
+                { pred: "1-0 → 0-1", pts: "0 pts", color: "text-gray-500",   desc: "Sin puntos" },
               ].map(({ pred, pts, color, desc }) => (
                 <div key={pred} className="flex items-center justify-between bg-gray-800 rounded-lg px-4 py-2.5">
                   <div>

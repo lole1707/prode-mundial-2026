@@ -20,7 +20,8 @@ function calcPoints(
 ): number {
   if (ph === rh && pa === ra) return cfg.exact;
   const pd = ph - pa, rd = rh - ra;
-  if (rd !== 0 && Math.sign(pd) === Math.sign(rd)) return cfg.winner;
+  if (rd !== 0 && Math.sign(pd) === Math.sign(rd))
+    return cfg.winner + (pd === rd ? cfg.goalDiff : 0);
   if (rd === 0 && pd === 0) return cfg.draw;
   return 0;
 }
