@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 export const CONFIG_UID = "__scoring_config__";
