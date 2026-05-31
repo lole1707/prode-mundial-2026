@@ -92,16 +92,18 @@ export async function buildCard(
 
   const t = transform ?? defaultTransform(photo);
 
-  // 1. Dark background behind photo (head cutout shows photo, not white)
-  ctx.fillStyle = "#111111";
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
+  // Load raw template (no processing needed — lighten blend handles transparency)
+  const rawTpl = await loadImage("/card-template.jpg");
 
-  // 2. Photo behind
+  // 1. Draw raw template first
+  ctx.drawImage(rawTpl, 0, 0, CARD_W, CARD_H);
+
+  // 2. Draw photo with lighten blend:
+  //    - Dark areas (black silhouette) = max(0, photo) = photo → photo shows through
+  //    - Bright areas (teal, logos) = max(bright, photo) = stays bright → card design wins
+  ctx.globalCompositeOperation = "lighten";
   ctx.drawImage(photo, t.x, t.y, t.w, t.h);
-
-  // 3. Processed template on top — dark silhouette is now transparent,
-  //    card design (teal, logos, numbers) overlays the photo
-  ctx.drawImage(tpl, 0, 0, CARD_W, CARD_H);
+  ctx.globalCompositeOperation = "source-over";
 
   // 4. Info band overlay + text
   const bandY = CARD_H * INFO_Y;

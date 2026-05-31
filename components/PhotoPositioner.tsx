@@ -196,31 +196,21 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
                 userSelect: "none",
                 pointerEvents: "all",
                 cursor: "grab",
-                zIndex: 2, // photo on top of raw template, behind processed template
+                zIndex: 2,
+                mixBlendMode: "lighten" as const, // dark silhouette → photo shows; bright teal → card wins
               }}
             />
           )}
 
-          {/* Dark background so the transparent head area looks natural */}
-          <div className="absolute inset-0" style={{ zIndex: 0, background: "#111" }} />
-
-          {/* Raw template on top of dark bg but behind photo — card design visible */}
+          {/* Raw template as base — card design visible */}
           <img
             src="/card-template.jpg"
             alt=""
             className="absolute inset-0 w-full h-full object-fill pointer-events-none"
-            style={{ zIndex: 1 }}
+            style={{ zIndex: 0 }}
           />
 
-          {/* Processed template on top: only the "?" and near-black pixels removed */}
-          {processedTpl && (
-            <img
-              src={processedTpl}
-              alt=""
-              className="absolute inset-0 w-full h-full object-fill pointer-events-none"
-              style={{ zIndex: 3 }}
-            />
-          )}
+          {/* No processed template needed — lighten blend on photo handles it */}
 
           {/* Dashed guide showing silhouette ellipse boundary */}
           <svg
