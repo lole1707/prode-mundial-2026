@@ -78,15 +78,21 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
     try {
       let photoUrl: string | undefined = current.photo;
 
-      if (photoFile) {
+      // Upload photo if: new file selected OR existing photo was repositioned
+      if (photoFile || (photoTransform && photoPreview)) {
         let uploadBlob: Blob;
-        try { uploadBlob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector, photoTransform); }
-        catch { uploadBlob = photoFile; }
-        const fd = new FormData();
-        fd.append("file", new File([uploadBlob], "avatar.jpg", { type: "image/jpeg" }));
-        fd.append("uid", user.uid);
-        const up = await fetch("/api/profile/avatar", { method: "POST", body: fd });
-        if (up.ok) { const { url } = await up.json(); photoUrl = url; }
+        try {
+          uploadBlob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector, photoTransform);
+        } catch {
+          uploadBlob = photoFile ?? new Blob(); // fallback
+        }
+        if (uploadBlob.size > 0) {
+          const fd = new FormData();
+          fd.append("file", new File([uploadBlob], "avatar.jpg", { type: "image/jpeg" }));
+          fd.append("uid", user.uid);
+          const up = await fetch("/api/profile/avatar", { method: "POST", body: fd });
+          if (up.ok) { const { url } = await up.json(); photoUrl = url; }
+        }
       }
 
       const body: Record<string, string> = { uid: user.uid, nombre, apellido, apodo, edad, altura, sector };
