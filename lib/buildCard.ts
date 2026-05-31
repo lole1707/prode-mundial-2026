@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v16";
+const TPL_VERSION = "v17";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -37,6 +37,22 @@ export async function getProcessedTemplate(): Promise<string> {
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
+
+  // Paint white pixels inside the head area BLACK so lighten blend makes them transparent
+  // The "?" is white — turning it black makes the photo show through it too
+  const id = ctx.getImageData(0, 0, c.width, c.height);
+  const d = id.data;
+  const hx1 = c.width  * 0.28, hx2 = c.width  * 0.68;
+  const hy1 = c.height * 0.03, hy2 = c.height * 0.32;
+  for (let pi = 0; pi < d.length / 4; pi++) {
+    const px = pi % c.width;
+    const py = Math.floor(pi / c.width);
+    if (px < hx1 || px > hx2 || py < hy1 || py > hy2) continue;
+    const i = pi * 4;
+    const lum = d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
+    if (lum > 160) { d[i] = 0; d[i+1] = 0; d[i+2] = 0; } // paint white → black
+  }
+  ctx.putImageData(id, 0, 0);
 
   _processedTemplate = c.toDataURL("image/png");
   _processedVersion = TPL_VERSION;
