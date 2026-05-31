@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v9";
+const TPL_VERSION = "v10";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -37,19 +37,15 @@ export async function getProcessedTemplate(): Promise<string> {
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
-  // Paint the "?" area BLACK so lighten blend makes it transparent like the rest of the silhouette
-  ctx.save();
+  // Paint the entire head/face area BLACK (covers ? including the dot at the bottom)
+  // Uses a rectangle to guarantee full coverage of all white elements
   ctx.fillStyle = "#000000";
-  ctx.beginPath();
-  ctx.ellipse(
-    c.width  * 0.47,  // cx
-    c.height * 0.15,  // cy — face area
-    c.width  * 0.20,  // rx
-    c.height * 0.14,  // ry
-    0, 0, Math.PI * 2
+  ctx.fillRect(
+    c.width  * 0.20,  // x start
+    c.height * 0.01,  // y start
+    c.width  * 0.56,  // width  (from 20% to 76%)
+    c.height * 0.31   // height (from 1% to 32%)
   );
-  ctx.fill();
-  ctx.restore();
 
   _processedTemplate = c.toDataURL("image/png");
   _processedVersion = TPL_VERSION;
