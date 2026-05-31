@@ -27,41 +27,45 @@ function calcPoints(
   return cfg.winner;
 }
 
+function noCache(url: string) {
+  // Append timestamp so no CDN/fetch cache ever serves a stale response
+  return `${url}&_t=${Date.now()}`;
+}
+
 async function recalculateAll() {
-  // Load scoring config
   const defaults = { exact: 4, winner: 3, draw: 3, goalDiff: 1 };
   let scoring = defaults;
+
   const cfgRes = await fetch(
-    `${DB_URL}/rest/v1/users?uid=eq.__scoring_config__&select=display_name`,
-    { headers: h(), cache: "no-store" }
+    noCache(`${DB_URL}/rest/v1/users?uid=eq.__scoring_config__&select=display_name`),
+    { headers: h() }
   );
   if (cfgRes.ok) {
     const rows: { display_name: string }[] = await cfgRes.json();
     try { if (rows[0]) scoring = { ...defaults, ...JSON.parse(rows[0].display_name) }; } catch {}
   }
 
-  // All finished matches
+  // ALL finished matches (fresh from DB — timestamp busts any CDN cache)
   const matchRes = await fetch(
-    `${DB_URL}/rest/v1/matches?finished=eq.true&select=id,home_score,away_score`,
-    { headers: h(), cache: "no-store" }
+    noCache(`${DB_URL}/rest/v1/matches?finished=eq.true&select=id,home_score,away_score`),
+    { headers: h() }
   );
   const finished: { id: string; home_score: number; away_score: number }[] =
     matchRes.ok ? await matchRes.json() : [];
 
-  if (finished.length === 0) return;
-
-  // All users
+  // All users (excluding scoring config row)
+  // Note: if finished.length === 0, all users get total_points = 0 (correct reset)
   const usersRes = await fetch(
-    `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid`,
-    { headers: h(), cache: "no-store" }
+    noCache(`${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid`),
+    { headers: h() }
   );
   const users: { uid: string }[] = usersRes.ok ? await usersRes.json() : [];
 
-  // Calculate and update each user
-  await Promise.all(users.map(async (u) => {
+  // Calculate each user sequentially to avoid DB write conflicts
+  for (const u of users) {
     const predRes = await fetch(
-      `${DB_URL}/rest/v1/predictions?user_id=eq.${u.uid}&select=match_id,home_score,away_score`,
-      { headers: h(), cache: "no-store" }
+      noCache(`${DB_URL}/rest/v1/predictions?user_id=eq.${u.uid}&select=match_id,home_score,away_score`),
+      { headers: h() }
     );
     const preds: { match_id: string; home_score: number; away_score: number }[] =
       predRes.ok ? await predRes.json() : [];
@@ -69,7 +73,9 @@ async function recalculateAll() {
     let total = 0;
     for (const p of preds) {
       const m = finished.find(f => f.id === p.match_id);
-      if (m) total += calcPoints(p.home_score, p.away_score, m.home_score, m.away_score, scoring);
+      if (m && m.home_score !== null && m.away_score !== null) {
+        total += calcPoints(p.home_score, p.away_score, m.home_score, m.away_score, scoring);
+      }
     }
 
     await fetch(`${DB_URL}/rest/v1/users?uid=eq.${u.uid}`, {
@@ -77,7 +83,7 @@ async function recalculateAll() {
       headers: h({ "Prefer": "return=minimal" }),
       body: JSON.stringify({ total_points: total }),
     });
-  }));
+  }
 }
 
 export async function POST(req: NextRequest) {

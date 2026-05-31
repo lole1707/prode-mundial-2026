@@ -35,14 +35,14 @@ export async function POST(req: NextRequest) {
   // Fetch finished matches
   const matchRes = await fetch(
     `${DB_URL}/rest/v1/matches?finished=eq.true&select=id,home_score,away_score,finished`,
-    { headers: h(), cache: "no-store" }
+    { headers: h() }
   );
   const finishedMatches: Match[] = matchRes.ok ? await matchRes.json() : [];
 
   // Fetch all users
   const usersRes = await fetch(
     `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid`,
-    { headers: h(), cache: "no-store" }
+    { headers: h() }
   );
   const users: { uid: string }[] = usersRes.ok ? await usersRes.json() : [];
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   for (const u of users) {
     const predRes = await fetch(
       `${DB_URL}/rest/v1/predictions?user_id=eq.${u.uid}&select=match_id,home_score,away_score`,
-      { headers: h(), cache: "no-store" }
+      { headers: h() }
     );
     const preds: Prediction[] = predRes.ok ? await predRes.json() : [];
 

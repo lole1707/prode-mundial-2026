@@ -215,7 +215,15 @@ export default function AdminPage() {
       setMatches(prev => prev.map(m =>
         targets.find(t => t.id === m.id) ? { ...m, homeScore: null as unknown as number, awayScore: null as unknown as number, finished: false } : m
       ));
-      setSimMsg("✓ Simulacro limpiado. Los partidos volvieron a pendientes.");
+      // Reset all users' points to 0 since no matches are finished
+      await fetch("/api/admin/recalculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid: user?.uid, scoring }),
+      });
+      const usersRes = await fetch("/api/admin/users");
+      if (usersRes.ok) setUsers(await usersRes.json());
+      setSimMsg("✓ Simulacro limpiado. Puntos reseteados a 0.");
     } catch { setSimMsg("✗ Error al limpiar"); }
     setSimulating(false);
   }
