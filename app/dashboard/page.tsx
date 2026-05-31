@@ -395,10 +395,10 @@ export default function Dashboard() {
           const grupos = Array.from(new Set(lbUsers.map(u => getGrupo(u.display_name) ?? "").filter(Boolean))).sort();
           const hayGrupos = grupos.length > 1;
 
-          // Default: show user's own group; if no groups exist, show all
-          const activeGrupo = lbGrupo === "__mi_grupo__"
-            ? (myGrupo || "")
-            : lbGrupo;
+          // Admin sees all groups; regular users only see their own group
+          const activeGrupo = isAdmin
+            ? (lbGrupo === "__mi_grupo__" ? "" : lbGrupo)
+            : (myGrupo || "");
 
           const filtered = activeGrupo
             ? lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === activeGrupo)
@@ -408,10 +408,10 @@ export default function Dashboard() {
 
           return (
             <div>
-              {/* Group selector */}
-              {hayGrupos && lbLoaded && (
+              {/* Group selector — only visible to admin */}
+              {isAdmin && hayGrupos && lbLoaded && (
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {[{ key: "__mi_grupo__", label: myGrupo || "Mi grupo" }, { key: "", label: "Todos" }, ...grupos.map(g => ({ key: g, label: g }))].map(({ key, label }) => (
+                  {[{ key: "", label: "Todos" }, ...grupos.map(g => ({ key: g, label: g }))].map(({ key, label }) => (
                     <button key={key} onClick={() => setLbGrupo(key)}
                       className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${lbGrupo === key ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}>
                       {label}
