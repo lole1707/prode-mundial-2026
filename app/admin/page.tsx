@@ -173,38 +173,46 @@ export default function AdminPage() {
     setRecalculating(false);
   }
 
-  // Predefined fake results for the first 8 group matches
-  const SIM_SCORES = [
-    { home: 2, away: 0 }, { home: 1, away: 1 }, { home: 3, away: 1 },
-    { home: 0, away: 0 }, { home: 2, away: 2 }, { home: 1, away: 0 },
-    { home: 4, away: 2 }, { home: 0, away: 1 },
-  ];
+  function randomScore() {
+    const goals = [0,0,0,1,1,1,1,2,2,2,3,3,4];
+    return {
+      home: goals[Math.floor(Math.random() * goals.length)],
+      away: goals[Math.floor(Math.random() * goals.length)],
+    };
+  }
 
   async function startSimulation() {
     setSimulating(true); setSimMsg("");
-    const targets = matches.filter(m => m.stage === "group").slice(0, 8);
+    const targets = matches.filter(m => m.stage === "group");
     if (targets.length === 0) { setSimMsg("✗ Cargá el fixture primero"); setSimulating(false); return; }
     try {
-      const payload = targets.map((m, i) => ({ id: m.id, home: SIM_SCORES[i].home, away: SIM_SCORES[i].away, finished: true }));
-      const saveRes = await fetch("/api/admin/save-result", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid: user?.uid, matches: payload }),
-      });
-      if (!saveRes.ok) throw new Error(await saveRes.text());
+      const scores = targets.map(() => randomScore());
+      const payload = targets.map((m, i) => ({ id: m.id, home: scores[i].home, away: scores[i].away, finished: true }));
+
+      // Send in batches of 20 to avoid large payloads
+      const BATCH = 20;
+      for (let i = 0; i < payload.length; i += BATCH) {
+        const res = await fetch("/api/admin/save-result", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adminUid: user?.uid, matches: payload.slice(i, i + BATCH) }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+      }
+
       setMatches(prev => prev.map(m => {
         const idx = targets.findIndex(t => t.id === m.id);
         if (idx < 0) return m;
-        return { ...m, homeScore: SIM_SCORES[idx].home, awayScore: SIM_SCORES[idx].away, finished: true };
+        return { ...m, homeScore: scores[idx].home, awayScore: scores[idx].away, finished: true };
       }));
-      setSimMsg(`✓ ${targets.length} partidos cargados y puntajes recalculados automáticamente.`);
+      setSimMsg(`✓ ${targets.length} partidos de grupos simulados con resultados aleatorios.`);
     } catch { setSimMsg("✗ Error al simular"); }
     setSimulating(false);
   }
 
   async function clearSimulation() {
     setSimulating(true); setSimMsg("");
-    const targets = matches.filter(m => m.stage === "group" && m.finished).slice(0, 8);
+    const targets = matches.filter(m => m.stage === "group" && m.finished);
     try {
       const payload = targets.map(m => ({ id: m.id, home: null as unknown as number, away: null as unknown as number, finished: false }));
       await fetch("/api/admin/save-result", {
@@ -373,7 +381,7 @@ export default function AdminPage() {
             {/* Simulacro de prueba */}
             <div className="bg-gray-900 border border-yellow-800/40 rounded-xl p-4 mb-4">
               <p className="text-sm font-semibold text-yellow-400 mb-1">🧪 Simulacro de prueba</p>
-              <p className="text-xs text-gray-500 mb-3">Carga resultados ficticios en los primeros 8 partidos para probar pronósticos y puntajes antes del Mundial. Después limpialo para dejarlo listo.</p>
+              <p className="text-xs text-gray-500 mb-3">Carga resultados aleatorios en todos los partidos de la fase de grupos (72 partidos) para probar pronósticos y puntajes. Después limpialo para dejarlo listo.</p>
               <div className="flex flex-wrap gap-2">
                 <button onClick={startSimulation} disabled={simulating} className="text-sm bg-yellow-700 hover:bg-yellow-600 disabled:opacity-50 px-3 py-2 rounded-lg font-semibold">
                   {simulating ? "..." : "▶ Iniciar simulacro"}
