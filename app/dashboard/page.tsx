@@ -393,81 +393,72 @@ export default function Dashboard() {
         {tab === "posiciones" && (() => {
           const myGrupo = getGrupo(lbUsers.find(u => u.uid === user?.uid)?.display_name ?? "") ?? "";
           const grupos = Array.from(new Set(lbUsers.map(u => getGrupo(u.display_name) ?? "").filter(Boolean))).sort();
-          const hayGrupos = grupos.length > 1;
 
-          // Admin sees all groups; regular users only see their own group
-          const activeGrupo = isAdmin
-            ? (lbGrupo === "__mi_grupo__" ? "" : lbGrupo)
-            : (myGrupo || "");
-
-          const filtered = activeGrupo
-            ? lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === activeGrupo)
-            : lbUsers;
-
-          const [first, ...rest] = filtered;
-
-          return (
-            <div>
-              {/* Group selector — only visible to admin */}
-              {isAdmin && hayGrupos && lbLoaded && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {[{ key: "", label: "Todos" }, ...grupos.map(g => ({ key: g, label: g }))].map(({ key, label }) => (
-                    <button key={key} onClick={() => setLbGrupo(key)}
-                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${lbGrupo === key ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}>
-                      {label}
-                    </button>
-                  ))}
+          // Helper: render a ranked list for a set of users
+          function GrupoList({ title, lista }: { title?: string; lista: typeof lbUsers }) {
+            if (lista.length === 0) return null;
+            const [first, ...rest] = lista;
+            const firstName = getDisplayName(first.display_name);
+            const firstPhoto = getPhoto(first.display_name);
+            return (
+              <div className="mb-8">
+                {title && <h2 className="text-lg font-bold text-white mb-3 border-b border-gray-800 pb-2">{title}</h2>}
+                <div className={`flex flex-col items-center bg-gray-900 border-2 rounded-2xl px-6 py-6 mb-3 ${first.uid === user?.uid ? "border-green-600" : "border-yellow-500/60"}`}>
+                  <span className="text-3xl mb-2">🥇</span>
+                  <Avatar photo={firstPhoto} name={firstName} size="lg" />
+                  <p className="mt-3 text-lg font-bold text-white">{firstName} {first.uid === user?.uid && <span className="text-sm text-green-400">(vos)</span>}</p>
+                  <p className="text-3xl font-bold text-green-400 mt-1">{first.total_points}</p>
+                  <p className="text-xs text-gray-500">pts</p>
                 </div>
-              )}
-
-              {!lbLoaded ? (
-                <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-green-500" /></div>
-              ) : filtered.length === 0 ? (
-                <p className="text-gray-500 text-center py-12">Aún no hay participantes.</p>
-              ) : (
-                <>
-                  {first && (() => {
-                    const name = getDisplayName(first.display_name);
-                    const photo = getPhoto(first.display_name);
+                <div className="space-y-2">
+                  {rest.map((u, i) => {
+                    const name = getDisplayName(u.display_name);
+                    const photo = getPhoto(u.display_name);
+                    const pos = i + 2;
+                    const isMe = u.uid === user?.uid;
                     return (
-                      <div className={`flex flex-col items-center bg-gray-900 border-2 rounded-2xl px-6 py-8 mb-5 ${first.uid === user?.uid ? "border-green-600" : "border-yellow-500/60"}`}>
-                        <span className="text-4xl mb-3">🥇</span>
-                        <Avatar photo={photo} name={name} size="lg" />
-                        <p className="mt-4 text-xl font-bold text-white">
-                          {name} {first.uid === user?.uid && <span className="text-sm text-green-400">(vos)</span>}
-                        </p>
-                        <p className="text-4xl font-bold text-green-400 mt-2">{first.total_points}</p>
-                        <p className="text-sm text-gray-500">pts</p>
+                      <div key={u.uid} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${isMe ? "bg-green-950/30 border-green-700" : "bg-gray-900 border-gray-800"}`}>
+                        <span className="w-8 text-center flex-shrink-0">
+                          {pos === 2 ? <span className="text-xl">🥈</span> : pos === 3 ? <span className="text-xl">🥉</span> : <span className="text-gray-500 text-sm font-medium">#{pos}</span>}
+                        </span>
+                        <Avatar photo={photo} name={name} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white truncate">{name} {isMe && <span className="text-xs text-green-400">(vos)</span>}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xl font-bold text-green-400">{u.total_points}</p>
+                          <p className="text-xs text-gray-500">pts</p>
+                        </div>
                       </div>
                     );
-                  })()}
-                  <div className="space-y-2">
-                    {rest.map((u, i) => {
-                      const name = getDisplayName(u.display_name);
-                      const photo = getPhoto(u.display_name);
-                      const pos = i + 2;
-                      const isMe = u.uid === user?.uid;
-                      return (
-                        <div key={u.uid} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${isMe ? "bg-green-950/30 border-green-700" : "bg-gray-900 border-gray-800"}`}>
-                          <span className="w-8 text-center flex-shrink-0">
-                            {pos === 2 ? <span className="text-xl">🥈</span> : pos === 3 ? <span className="text-xl">🥉</span> : <span className="text-gray-500 text-sm font-medium">#{pos}</span>}
-                          </span>
-                          <Avatar photo={photo} name={name} size="sm" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-white truncate">{name} {isMe && <span className="text-xs text-green-400">(vos)</span>}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-xl font-bold text-green-400">{u.total_points}</p>
-                            <p className="text-xs text-gray-500">pts</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          );
+                  })}
+                </div>
+              </div>
+            );
+          }
+
+          if (!lbLoaded) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-green-500" /></div>;
+
+          if (isAdmin) {
+            // Admin: one section per group
+            const gruposParaMostrar = grupos.length > 0 ? grupos : [""];
+            return (
+              <div>
+                {gruposParaMostrar.map(g => {
+                  const lista = lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === g);
+                  return <GrupoList key={g || "sin-grupo"} title={g || "Sin grupo"} lista={lista} />;
+                })}
+              </div>
+            );
+          }
+
+          // Regular user: only their group
+          const lista = myGrupo
+            ? lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === myGrupo)
+            : lbUsers;
+
+          if (lista.length === 0) return <p className="text-gray-500 text-center py-12">Aún no hay participantes en tu grupo.</p>;
+          return <GrupoList lista={lista} />;
         })()}
       </div>
 
