@@ -60,10 +60,15 @@ export default function Dashboard() {
     if (!loading && user && !user.profileCompleted && !isAdmin) router.push("/profile");
   }, [user, loading, router, isAdmin]);
 
-  // Fetch fresh matches and predictions (called on mount, tab switch, focus, and polling)
+  // Fetch fresh matches, predictions AND leaderboard (points)
   async function refreshMatches() {
     if (!user) return;
-    const [cfgRes, matchRes] = await Promise.all([fetch("/api/config"), fetch("/api/matches")]);
+    const [cfgRes, matchRes, predRes, lbRes] = await Promise.all([
+      fetch("/api/config"),
+      fetch("/api/matches"),
+      fetch(`/api/predictions?userId=${user.uid}`),
+      fetch("/api/admin/users"),
+    ]);
     if (cfgRes.ok) setScoring(await cfgRes.json());
     if (matchRes.ok) {
       const data = await matchRes.json() as Record<string, unknown>[];
@@ -76,7 +81,6 @@ export default function Dashboard() {
         awayScore: m.away_score as number, finished: m.finished as boolean,
       })));
     }
-    const predRes = await fetch(`/api/predictions?userId=${user.uid}`);
     if (predRes.ok) {
       const predData = await predRes.json() as Record<string, unknown>[];
       const map: Record<string, Prediction> = {};
@@ -88,6 +92,14 @@ export default function Dashboard() {
         };
       });
       setPredictions(map);
+    }
+    if (lbRes.ok) {
+      const data: LeaderboardUser[] = await lbRes.json();
+      const sorted = (data ?? []).sort((a, b) =>
+        b.total_points - a.total_points || getDisplayName(a.display_name).localeCompare(getDisplayName(b.display_name))
+      );
+      setLbUsers(sorted);
+      setLbLoaded(true);
     }
   }
 
