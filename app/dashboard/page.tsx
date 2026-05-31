@@ -15,8 +15,8 @@ type MainTab = "resultados" | "pronosticos" | "posiciones" | "miperfil";
 
 const STAGES = [
   { key: "group", label: "Grupos" },
-  { key: "round_of_32", label: "32avos" },
-  { key: "round_of_16", label: "16avos" },
+  { key: "round_of_32", label: "16avos" },
+  { key: "round_of_16", label: "Octavos" },
   { key: "quarterfinal", label: "Cuartos" },
   { key: "semifinal", label: "Semis" },
   { key: "third_place", label: "3° Puesto" },

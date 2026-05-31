@@ -287,8 +287,8 @@ export default function AdminPage() {
   }
 
   const stages = [
-    { key: "group", label: "Grupos" }, { key: "round_of_32", label: "32avos" },
-    { key: "round_of_16", label: "16avos" }, { key: "quarterfinal", label: "Cuartos" },
+    { key: "group", label: "Grupos" }, { key: "round_of_32", label: "16avos" },
+    { key: "round_of_16", label: "Octavos" }, { key: "quarterfinal", label: "Cuartos" },
     { key: "semifinal", label: "Semis" }, { key: "third_place", label: "3° Puesto" }, { key: "final", label: "Final" },
   ];
 
