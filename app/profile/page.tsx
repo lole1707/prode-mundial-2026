@@ -107,7 +107,16 @@ export default function ProfilePage() {
     return (
       <PhotoPositioner
         photoSrc={photoPreview}
-        onConfirm={(t) => { setPhotoTransform(t); setPositioning(false); }}
+        onConfirm={(t) => {
+          setPhotoTransform(t);
+          setPositioning(false);
+          // Rebuild card immediately with new transform
+          setCompositing(true);
+          buildCard(photoPreview, apellido, nombre, edad, altura, sector, t)
+            .then(blob => { setCardPreview(URL.createObjectURL(blob)); setCardReady(true); })
+            .catch(() => setCardReady(false))
+            .finally(() => setCompositing(false));
+        }}
         onCancel={() => { setPositioning(false); }}
       />
     );

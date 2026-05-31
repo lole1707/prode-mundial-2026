@@ -23,8 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// Cache the processed template — bump version string to invalidate on threshold changes
-const TPL_VERSION = "v3";
+const TPL_VERSION = "v5";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -41,18 +40,33 @@ export async function getProcessedTemplate(): Promise<string> {
   const id = ctx.getImageData(0, 0, c.width, c.height);
   const d = id.data;
 
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], g = d[i + 1], b = d[i + 2];
-    // Perceptual luminance
-    const lum = r * 0.299 + g * 0.587 + b * 0.114;
+  // Silhouette ellipse in image pixel coords
+  const cx = c.width  * SIL_CX;
+  const cy = c.height * SIL_CY;
+  const rx = c.width  * SIL_RX;
+  const ry = c.height * SIL_RY;
+
+  for (let pi = 0; pi < d.length / 4; pi++) {
+    const px = pi % c.width;
+    const py = Math.floor(pi / c.width);
+    const i  = pi * 4;
+
+    // Everything inside the silhouette ellipse → fully transparent
+    // This removes the "?" and any other element (dark outline, body fill)
+    const dx = (px - cx) / rx;
+    const dy = (py - cy) / ry;
+    if (dx * dx + dy * dy <= 1) {
+      d[i + 3] = 0;
+      continue;
+    }
+
+    // Outside ellipse: remove dark border pixels (outline, neck, ears)
+    const lum = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
     if (lum < 90) {
-      // Dark (black + dark gray, head outline, ears, neck) → fully transparent
       d[i + 3] = 0;
     } else if (lum < 135) {
-      // Soft edge so the transition isn't harsh
       d[i + 3] = Math.round(((lum - 90) / 45) * 255);
     }
-    // Bright/coloured pixels stay fully opaque (card design stays intact)
   }
 
   ctx.putImageData(id, 0, 0);
