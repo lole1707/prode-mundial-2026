@@ -51,6 +51,8 @@ export default function AdminPage() {
   const [scoringMsg, setScoringMsg] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const [simMsg, setSimMsg] = useState("");
   const [monitor, setMonitor] = useState<MonitorData | null>(null);
   const [monitorLoading, setMonitorLoading] = useState(false);
 
@@ -165,6 +167,54 @@ export default function AdminPage() {
     }
     setRecalculating(false);
     alert("Puntajes recalculados.");
+  }
+
+  // Predefined fake results for the first 8 group matches
+  const SIM_SCORES = [
+    { home: 2, away: 0 }, { home: 1, away: 1 }, { home: 3, away: 1 },
+    { home: 0, away: 0 }, { home: 2, away: 2 }, { home: 1, away: 0 },
+    { home: 4, away: 2 }, { home: 0, away: 1 },
+  ];
+
+  async function startSimulation() {
+    setSimulating(true); setSimMsg("");
+    const targets = matches.filter(m => m.stage === "group").slice(0, 8);
+    if (targets.length === 0) { setSimMsg("✗ Cargá el fixture primero"); setSimulating(false); return; }
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        const m = targets[i];
+        const s = SIM_SCORES[i];
+        await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${m.id}`, {
+          method: "PATCH", headers: apiHeaders(),
+          body: JSON.stringify({ home_score: s.home, away_score: s.away, finished: true }),
+        });
+      }
+      setMatches(prev => prev.map(m => {
+        const idx = targets.findIndex(t => t.id === m.id);
+        if (idx < 0) return m;
+        return { ...m, homeScore: SIM_SCORES[idx].home, awayScore: SIM_SCORES[idx].away, finished: true };
+      }));
+      setSimMsg(`✓ ${targets.length} partidos con resultados de prueba. Ahora los usuarios pueden pronosticar y vos recalculás puntajes.`);
+    } catch { setSimMsg("✗ Error al simular"); }
+    setSimulating(false);
+  }
+
+  async function clearSimulation() {
+    setSimulating(true); setSimMsg("");
+    const targets = matches.filter(m => m.stage === "group" && m.finished).slice(0, 8);
+    try {
+      for (const m of targets) {
+        await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${m.id}`, {
+          method: "PATCH", headers: apiHeaders(),
+          body: JSON.stringify({ home_score: null, away_score: null, finished: false }),
+        });
+      }
+      setMatches(prev => prev.map(m =>
+        targets.find(t => t.id === m.id) ? { ...m, homeScore: null as unknown as number, awayScore: null as unknown as number, finished: false } : m
+      ));
+      setSimMsg("✓ Simulacro limpiado. Los partidos volvieron a pendientes.");
+    } catch { setSimMsg("✗ Error al limpiar"); }
+    setSimulating(false);
   }
 
   async function deleteUser(uid: string) {
@@ -308,6 +358,21 @@ export default function AdminPage() {
               <button onClick={recalculateAll} disabled={recalculating} className="text-sm bg-yellow-700 hover:bg-yellow-600 disabled:opacity-50 px-3 py-2 rounded-lg">{recalculating ? "Calculando..." : "Recalcular Puntajes"}</button>
             </div>
             {syncMsg && <p className={`text-sm mb-4 px-3 py-2 rounded-lg ${syncMsg.startsWith("✓") ? "text-green-400 bg-green-900/20 border border-green-800" : "text-red-400 bg-red-900/20 border border-red-800"}`}>{syncMsg}</p>}
+
+            {/* Simulacro de prueba */}
+            <div className="bg-gray-900 border border-yellow-800/40 rounded-xl p-4 mb-4">
+              <p className="text-sm font-semibold text-yellow-400 mb-1">🧪 Simulacro de prueba</p>
+              <p className="text-xs text-gray-500 mb-3">Carga resultados ficticios en los primeros 8 partidos para probar pronósticos y puntajes antes del Mundial. Después limpialo para dejarlo listo.</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={startSimulation} disabled={simulating} className="text-sm bg-yellow-700 hover:bg-yellow-600 disabled:opacity-50 px-3 py-2 rounded-lg font-semibold">
+                  {simulating ? "..." : "▶ Iniciar simulacro"}
+                </button>
+                <button onClick={clearSimulation} disabled={simulating} className="text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-3 py-2 rounded-lg">
+                  {simulating ? "..." : "✕ Limpiar simulacro"}
+                </button>
+              </div>
+              {simMsg && <p className={`text-xs mt-2 ${simMsg.startsWith("✓") ? "text-green-400" : "text-red-400"}`}>{simMsg}</p>}
+            </div>
             <div className="flex flex-wrap gap-2 mb-6">
               {stages.map(s => (
                 <button key={s.key} onClick={() => setActiveStage(s.key)}
