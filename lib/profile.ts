@@ -5,6 +5,7 @@ export interface UserProfile {
   edad: string;
   altura: string;
   sector: string;
+  grupo?: string;
   photo?: string;
 }
 
@@ -18,6 +19,13 @@ export function parseProfile(displayName: string): UserProfile | null {
 
 export function getDisplayName(displayName: string): string {
   return parseProfile(displayName)?.apodo ?? displayName;
+}
+
+export function getGrupo(displayName: string): string | undefined {
+  try {
+    const p = JSON.parse(displayName);
+    return p.grupo ?? undefined;
+  } catch { return undefined; }
 }
 
 export function getPhoto(displayName: string): string | undefined {

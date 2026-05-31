@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { uid, nombre, apellido, apodo, edad, altura, sector, photo, newPassword } = await req.json();
+  const { uid, nombre, apellido, apodo, edad, altura, sector, photo, newPassword, grupo } = await req.json();
   if (!uid || !nombre || !apellido || !apodo || !edad || !sector) {
     return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
   }
@@ -41,7 +41,23 @@ export async function POST(req: NextRequest) {
     });
     if (!pwRes.ok) return NextResponse.json({ error: await pwRes.text() }, { status: pwRes.status });
   }
-  const profileData = { nombre, apellido, apodo, edad, altura: altura ?? "", sector, ...(photo ? { photo } : {}) };
+  // Preserve existing grupo if not explicitly provided
+  let resolvedGrupo = grupo;
+  if (!resolvedGrupo) {
+    const existing = await fetch(`${DB_URL}/rest/v1/users?uid=eq.${uid}&select=display_name`, {
+      headers: h(), cache: "no-store",
+    });
+    if (existing.ok) {
+      const rows: { display_name: string }[] = await existing.json();
+      try { resolvedGrupo = JSON.parse(rows[0]?.display_name ?? "").grupo; } catch {}
+    }
+  }
+
+  const profileData = {
+    nombre, apellido, apodo, edad, altura: altura ?? "", sector,
+    ...(resolvedGrupo ? { grupo: resolvedGrupo } : {}),
+    ...(photo ? { photo } : {}),
+  };
   const display_name = JSON.stringify(profileData);
 
   // PATCH returns the updated rows; empty array means no row with this uid exists

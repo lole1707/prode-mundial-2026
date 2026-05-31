@@ -14,7 +14,7 @@ function h(extra?: Record<string, string>) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { displayName, username, password, adminUid } = await req.json();
+    const { displayName, username, password, adminUid, grupo } = await req.json();
 
     if (adminUid !== process.env.NEXT_PUBLIC_ADMIN_UID) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -39,10 +39,15 @@ export async function POST(req: NextRequest) {
     if (!uid) throw new Error("No se recibió ID de usuario");
 
     // Insert into users table via raw fetch (supabase JS client silently fails with sb_secret_ keys)
+    // Store grupo in the display_name JSON so it persists through profile edits
+    const initialDisplay = grupo
+      ? JSON.stringify({ grupo, _name: displayName })
+      : displayName;
+
     const insertRes = await fetch(`${DB_URL}/rest/v1/users`, {
       method: "POST",
       headers: h({ "Prefer": "return=minimal" }),
-      body: JSON.stringify({ uid, display_name: displayName, total_points: 0 }),
+      body: JSON.stringify({ uid, display_name: initialDisplay, total_points: 0 }),
     });
 
     if (!insertRes.ok) {

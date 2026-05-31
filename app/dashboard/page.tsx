@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Match, Prediction } from "@/lib/types";
 import { calculatePoints, ScoringConfig } from "@/lib/scoring";
 import { DEFAULTS } from "@/app/api/config/route";
-import { getDisplayName, getPhoto, parseProfile } from "@/lib/profile";
+import { getDisplayName, getPhoto, parseProfile, getGrupo } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 import EditProfileModal from "@/components/EditProfileModal";
@@ -53,6 +53,7 @@ export default function Dashboard() {
 
   const [lbUsers, setLbUsers] = useState<LeaderboardUser[]>([]);
   const [lbLoaded, setLbLoaded] = useState(false);
+  const [lbGrupo, setLbGrupo] = useState<string>("__mi_grupo__");
   const [editingProfile, setEditingProfile] = useState(false);
 
   useEffect(() => {
@@ -250,7 +251,6 @@ export default function Dashboard() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-green-500" /></div>;
 
   const medals = ["🥇","🥈","🥉"];
-  const [lbFirst, ...lbRest] = lbUsers;
 
   return (
     <div className="min-h-screen pb-20">
@@ -390,63 +390,85 @@ export default function Dashboard() {
         )}
 
         {/* POSICIONES */}
-        {tab === "posiciones" && (
-          <div>
-            {!lbLoaded ? (
-              <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-green-500" /></div>
-            ) : lbUsers.length === 0 ? (
-              <p className="text-gray-500 text-center py-12">Aún no hay participantes.</p>
-            ) : (
-              <>
-                {/* 1st place hero */}
-                {lbFirst && (() => {
-                  const name = getDisplayName(lbFirst.display_name);
-                  const photo = getPhoto(lbFirst.display_name);
-                  return (
-                    <div className={`flex flex-col items-center bg-gray-900 border-2 rounded-2xl px-6 py-8 mb-5 ${lbFirst.uid === user?.uid ? "border-green-600" : "border-yellow-500/60"}`}>
-                      <span className="text-4xl mb-3">🥇</span>
-                      <Avatar photo={photo} name={name} size="lg" />
-                      <p className="mt-4 text-xl font-bold text-white">
-                        {name} {lbFirst.uid === user?.uid && <span className="text-sm text-green-400">(vos)</span>}
-                      </p>
-                      <p className="text-4xl font-bold text-green-400 mt-2">{lbFirst.total_points}</p>
-                      <p className="text-sm text-gray-500">pts</p>
-                    </div>
-                  );
-                })()}
+        {tab === "posiciones" && (() => {
+          const myGrupo = getGrupo(lbUsers.find(u => u.uid === user?.uid)?.display_name ?? "") ?? "";
+          const grupos = Array.from(new Set(lbUsers.map(u => getGrupo(u.display_name) ?? "").filter(Boolean))).sort();
+          const hayGrupos = grupos.length > 1;
 
-                {/* Rest */}
-                <div className="space-y-2">
-                  {lbRest.map((u, i) => {
-                    const name = getDisplayName(u.display_name);
-                    const photo = getPhoto(u.display_name);
-                    const pos = i + 2;
-                    const isMe = u.uid === user?.uid;
+          // Default: show user's own group; if no groups exist, show all
+          const activeGrupo = lbGrupo === "__mi_grupo__"
+            ? (myGrupo || "")
+            : lbGrupo;
+
+          const filtered = activeGrupo
+            ? lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === activeGrupo)
+            : lbUsers;
+
+          const [first, ...rest] = filtered;
+
+          return (
+            <div>
+              {/* Group selector */}
+              {hayGrupos && lbLoaded && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {[{ key: "__mi_grupo__", label: myGrupo || "Mi grupo" }, { key: "", label: "Todos" }, ...grupos.map(g => ({ key: g, label: g }))].map(({ key, label }) => (
+                    <button key={key} onClick={() => setLbGrupo(key)}
+                      className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${lbGrupo === key ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!lbLoaded ? (
+                <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-green-500" /></div>
+              ) : filtered.length === 0 ? (
+                <p className="text-gray-500 text-center py-12">Aún no hay participantes.</p>
+              ) : (
+                <>
+                  {first && (() => {
+                    const name = getDisplayName(first.display_name);
+                    const photo = getPhoto(first.display_name);
                     return (
-                      <div key={u.uid} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${isMe ? "bg-green-950/30 border-green-700" : "bg-gray-900 border-gray-800"}`}>
-                        <span className="w-8 text-center flex-shrink-0">
-                          {pos === 2 ? <span className="text-xl">🥈</span>
-                            : pos === 3 ? <span className="text-xl">🥉</span>
-                            : <span className="text-gray-500 text-sm font-medium">#{pos}</span>}
-                        </span>
-                        <Avatar photo={photo} name={name} size="sm" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-white truncate">
-                            {name} {isMe && <span className="text-xs text-green-400">(vos)</span>}
-                          </p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-xl font-bold text-green-400">{u.total_points}</p>
-                          <p className="text-xs text-gray-500">pts</p>
-                        </div>
+                      <div className={`flex flex-col items-center bg-gray-900 border-2 rounded-2xl px-6 py-8 mb-5 ${first.uid === user?.uid ? "border-green-600" : "border-yellow-500/60"}`}>
+                        <span className="text-4xl mb-3">🥇</span>
+                        <Avatar photo={photo} name={name} size="lg" />
+                        <p className="mt-4 text-xl font-bold text-white">
+                          {name} {first.uid === user?.uid && <span className="text-sm text-green-400">(vos)</span>}
+                        </p>
+                        <p className="text-4xl font-bold text-green-400 mt-2">{first.total_points}</p>
+                        <p className="text-sm text-gray-500">pts</p>
                       </div>
                     );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                  })()}
+                  <div className="space-y-2">
+                    {rest.map((u, i) => {
+                      const name = getDisplayName(u.display_name);
+                      const photo = getPhoto(u.display_name);
+                      const pos = i + 2;
+                      const isMe = u.uid === user?.uid;
+                      return (
+                        <div key={u.uid} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${isMe ? "bg-green-950/30 border-green-700" : "bg-gray-900 border-gray-800"}`}>
+                          <span className="w-8 text-center flex-shrink-0">
+                            {pos === 2 ? <span className="text-xl">🥈</span> : pos === 3 ? <span className="text-xl">🥉</span> : <span className="text-gray-500 text-sm font-medium">#{pos}</span>}
+                          </span>
+                          <Avatar photo={photo} name={name} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-white truncate">{name} {isMe && <span className="text-xs text-green-400">(vos)</span>}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xl font-bold text-green-400">{u.total_points}</p>
+                            <p className="text-xs text-gray-500">pts</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
         {/* MI PERFIL */}

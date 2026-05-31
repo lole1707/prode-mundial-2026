@@ -7,7 +7,7 @@ import { Match } from "@/lib/types";
 import { FIXTURE } from "@/lib/fixture";
 import { calculatePoints, ScoringConfig } from "@/lib/scoring";
 import { DEFAULTS } from "@/app/api/config/route";
-import { getDisplayName, getPhoto } from "@/lib/profile";
+import { getDisplayName, getPhoto, getGrupo } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 
@@ -45,6 +45,7 @@ export default function AdminPage() {
   const [newName, setNewName] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newGrupo, setNewGrupo] = useState("");
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState("");
   const [scoring, setScoring] = useState<ScoringConfig>(DEFAULTS);
@@ -272,12 +273,12 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/create-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: newName, username: newUsername, password: newPassword, adminUid: user?.uid }),
+        body: JSON.stringify({ displayName: newName, username: newUsername, password: newPassword, adminUid: user?.uid, grupo: newGrupo }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCreateMsg(`✓ "${newName}" creado. Usuario: ${newUsername} / Pass: ${newPassword}`);
-      setNewName(""); setNewUsername(""); setNewPassword("");
+      setNewName(""); setNewUsername(""); setNewPassword(""); setNewGrupo("");
       setUsers(prev => [...prev, { uid: data.uid, display_name: newName, total_points: 0 }]);
     } catch (err: unknown) {
       setCreateMsg(`✗ ${err instanceof Error ? err.message : "Error"}`);
@@ -322,17 +323,33 @@ export default function AdminPage() {
                 <input type="text" value={newName} onChange={e => setNewName(e.target.value)} required placeholder="Nombre o apodo" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} required placeholder="Usuario (ej: pedro)" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} placeholder="Contraseña" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
+                <input type="text" value={newGrupo} onChange={e => setNewGrupo(e.target.value)} placeholder="Grupo (ej: Trabajo, Familia) — opcional" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 {createMsg && <p className={`text-sm rounded-lg px-3 py-2 ${createMsg.startsWith("✓") ? "text-green-400 bg-green-900/20 border border-green-800" : "text-red-400 bg-red-900/20 border border-red-800"}`}>{createMsg}</p>}
                 <button type="submit" disabled={creating} className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors">
                   {creating ? "Creando..." : "Crear usuario"}
                 </button>
               </form>
             </div>
-            <h2 className="text-lg font-semibold mb-3">Participantes ({users.length})</h2>
+            {(() => {
+              const grupos = Array.from(new Set(users.map(u => getGrupo(u.display_name) ?? "Sin grupo"))).sort();
+              return grupos.length > 1 ? (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="text-xs text-gray-500 self-center">Filtrar:</span>
+                  {["Todos", ...grupos].map(g => (
+                    <button key={g} onClick={() => setNewGrupo(g === "Todos" ? "" : g)}
+                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${(g === "Todos" && !newGrupo) || newGrupo === g ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
+            <h2 className="text-lg font-semibold mb-3">Participantes ({users.filter(u => !newGrupo || (getGrupo(u.display_name) ?? "Sin grupo") === newGrupo).length})</h2>
             <div className="space-y-2">
-              {users.map(u => {
+              {users.filter(u => !newGrupo || (getGrupo(u.display_name) ?? "Sin grupo") === newGrupo).map(u => {
                 const name = getDisplayName(u.display_name);
                 const photo = getPhoto(u.display_name);
+                const grupo = getGrupo(u.display_name);
                 const isConfirming = confirmDelete === u.uid;
                 return (
                   <div key={u.uid} className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
@@ -344,7 +361,10 @@ export default function AdminPage() {
                           {name[0]?.toUpperCase() ?? "?"}
                         </div>
                       )}
-                      <p className="font-medium flex-1">{name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{name}</p>
+                        {grupo && <p className="text-xs text-gray-500">{grupo}</p>}
+                      </div>
                       <span className="text-green-400 font-bold mr-2">{u.total_points} pts</span>
                       {!isConfirming ? (
                         <button onClick={() => setConfirmDelete(u.uid)} className="text-xs text-gray-500 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-900/20">
