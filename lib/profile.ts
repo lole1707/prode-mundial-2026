@@ -18,7 +18,14 @@ export function parseProfile(displayName: string): UserProfile | null {
 }
 
 export function getDisplayName(displayName: string): string {
-  return parseProfile(displayName)?.apodo ?? displayName;
+  const profile = parseProfile(displayName);
+  if (profile) return profile.apodo;
+  // Pre-profile state: admin created with { grupo, _name }
+  try {
+    const p = JSON.parse(displayName);
+    if (p._name) return p._name;
+  } catch {}
+  return displayName;
 }
 
 export function getGrupo(displayName: string): string | undefined {
