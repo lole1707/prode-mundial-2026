@@ -323,7 +323,12 @@ export default function AdminPage() {
                 <input type="text" value={newName} onChange={e => setNewName(e.target.value)} required placeholder="Nombre o apodo" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} required placeholder="Usuario (ej: pedro)" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} placeholder="Contraseña" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
-                <input type="text" value={newGrupo} onChange={e => setNewGrupo(e.target.value)} placeholder="Grupo (ej: Trabajo, Familia) — opcional" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
+                <select value={newGrupo} onChange={e => setNewGrupo(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500">
+                  <option value="">— Grupo (opcional) —</option>
+                  {["Prowork","Familia","Amigos","Otros 1","Otros 2","Otros 3"].map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
                 {createMsg && <p className={`text-sm rounded-lg px-3 py-2 ${createMsg.startsWith("✓") ? "text-green-400 bg-green-900/20 border border-green-800" : "text-red-400 bg-red-900/20 border border-red-800"}`}>{createMsg}</p>}
                 <button type="submit" disabled={creating} className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors">
                   {creating ? "Creando..." : "Crear usuario"}
