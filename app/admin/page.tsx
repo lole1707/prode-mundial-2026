@@ -146,14 +146,8 @@ export default function AdminPage() {
     if (res.ok) {
       setMatches(prev => prev.map(m => m.id === matchId ? { ...m, homeScore: home, awayScore: away, finished: true } : m));
       setDrafts(prev => { const n = { ...prev }; delete n[matchId]; return n; });
-      // Auto-recalculate
-      fetch("/api/admin/recalculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid: user?.uid, scoring }),
-      }).then(r => r.json()).then(d => {
-        if (d.ok) fetch("/api/admin/users").then(r => r.json()).then(u => setUsers(u ?? []));
-      });
+      // Refresh user list to show updated points
+      fetch("/api/admin/users").then(r => r.json()).then(u => setUsers(u ?? []));
     } else {
       alert("Error al guardar resultado");
     }
@@ -203,12 +197,6 @@ export default function AdminPage() {
         if (idx < 0) return m;
         return { ...m, homeScore: SIM_SCORES[idx].home, awayScore: SIM_SCORES[idx].away, finished: true };
       }));
-      // Auto-recalculate
-      await fetch("/api/admin/recalculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminUid: user?.uid, scoring }),
-      });
       setSimMsg(`✓ ${targets.length} partidos cargados y puntajes recalculados automáticamente.`);
     } catch { setSimMsg("✗ Error al simular"); }
     setSimulating(false);
