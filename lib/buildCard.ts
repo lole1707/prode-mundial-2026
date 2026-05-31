@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v11";
+const TPL_VERSION = "v12";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -41,7 +41,7 @@ export async function getProcessedTemplate(): Promise<string> {
 
   // Paint the "?" body (the curved top part)
   ctx.beginPath();
-  ctx.ellipse(c.width * 0.47, c.height * 0.13, c.width * 0.19, c.height * 0.12, 0, 0, Math.PI * 2);
+  ctx.ellipse(c.width * 0.47, c.height * 0.13, c.width * 0.17, c.height * 0.108, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Paint the dot of the "?" (the small dot below)
