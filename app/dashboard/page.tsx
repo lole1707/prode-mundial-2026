@@ -321,8 +321,10 @@ export default function Dashboard() {
               const draft = drafts[m.id];
               const isFinished = m.finished && m.homeScore !== null && m.awayScore !== null;
               const cutoff = new Date(new Date(m.datetime).getTime() - 30 * 60 * 1000);
+              const deleteCutoff = new Date(new Date(m.datetime).getTime() - 20 * 60 * 1000);
               const isPast = cutoff < new Date();
               const canPredict = !isPast && !isFinished;
+              const canDelete = deleteCutoff > new Date() && !isFinished;
               const pts = isFinished && pred ? calculatePoints(pred.homeScore, pred.awayScore, m.homeScore!, m.awayScore!, scoring) : null;
               const homeVal = draft?.home ?? (pred ? String(pred.homeScore) : "");
               const awayVal = draft?.away ?? (pred ? String(pred.awayScore) : "");
@@ -368,8 +370,8 @@ export default function Dashboard() {
                   </div>
                   {canPredict && (
                     <div className="mt-3 flex justify-between items-center">
-                      {/* Delete prediction button */}
-                      {predictions[m.id] && !drafts[m.id] && (
+                      {/* Delete prediction — only until 20 min before kickoff */}
+                      {canDelete && predictions[m.id] && !drafts[m.id] && (
                         <button onClick={() => deletePrediction(m.id)} disabled={saving === m.id}
                           className="text-xs text-gray-500 hover:text-red-400 disabled:opacity-50 px-2 py-1.5 rounded-lg transition-colors">
                           {saving === m.id ? "..." : "✕ Borrar pronóstico"}
