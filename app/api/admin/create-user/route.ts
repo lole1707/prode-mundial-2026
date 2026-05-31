@@ -20,7 +20,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const email = `${username.toLowerCase()}@prode.app`;
+    // Sanitize: only allow letters, numbers, dots, dashes, underscores
+    const sanitized = username.toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "") // remove accents
+      .replace(/\s+/g, ".")                              // spaces → dots
+      .replace(/[^a-z0-9._-]/g, "");                    // remove invalid chars
+
+    if (!sanitized) throw new Error("El nombre de usuario no tiene caracteres válidos");
+
+    const email = `${sanitized}@prode.app`;
 
     // Create auth user via Admin REST API
     const authRes = await fetch(`${DB_URL}/auth/v1/admin/users`, {
@@ -55,7 +63,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Usuario auth creado pero error en DB: ${err}` }, { status: 500 });
     }
 
-    return NextResponse.json({ uid, username, displayName });
+    return NextResponse.json({ uid, username: sanitized, displayName });
   } catch (err: unknown) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 500 });
   }

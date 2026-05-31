@@ -46,7 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string) => {
-    const email = `${username.toLowerCase()}@prode.app`;
+    const sanitized = username.toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/\s+/g, ".")
+      .replace(/[^a-z0-9._-]/g, "");
+    const email = `${sanitized}@prode.app`;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
