@@ -31,7 +31,7 @@ const FLAGS: Record<string, string> = {
   VEN: "🇻🇪", BOL: "🇧🇴", PER: "🇵🇪", CHI: "🇨🇱",
   HND: "🇭🇳", CRC: "🇨🇷", JAM: "🇯🇲", TRI: "🇹🇹",
   CMR: "🇨🇲", MLI: "🇲🇱", ANG: "🇦🇴", GUI: "🇬🇳",
-  BFA: "🇧🇫", GAB: "🇬🇦", NGA: "🇳🇬", CIV: "🇨🇮",
+  BFA: "🇧🇫", GAB: "🇬🇦", NGA: "🇳🇬",
   UAE: "🇦🇪", OMN: "🇴🇲", BHR: "🇧🇭", KWT: "🇰🇼",
   THA: "🇹🇭", VNM: "🇻🇳", IDN: "🇮🇩", CHN: "🇨🇳",
   UKR: "🇺🇦", HUN: "🇭🇺", GRE: "🇬🇷", ISR: "🇮🇱",
