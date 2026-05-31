@@ -19,12 +19,10 @@ function calcPoints(
   cfg: { exact: number; winner: number; draw: number; goalDiff: number }
 ): number {
   if (ph === rh && pa === ra) return cfg.exact;
-  const pw = ph > pa ? 1 : ph < pa ? -1 : 0;
-  const rw = rh > ra ? 1 : rh < ra ? -1 : 0;
-  if (pw !== rw) return 0;
-  if (pw === 0) return cfg.draw;
-  if (ph - pa === rh - ra) return cfg.goalDiff;
-  return cfg.winner;
+  const pd = ph - pa, rd = rh - ra;
+  if (rd !== 0 && Math.sign(pd) === Math.sign(rd)) return cfg.winner;
+  if (rd === 0 && pd === 0) return cfg.draw;
+  return 0;
 }
 
 function noStoreHeaders() {
