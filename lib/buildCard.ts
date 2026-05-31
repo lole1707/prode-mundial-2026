@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v15";
+const TPL_VERSION = "v16";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -37,14 +37,6 @@ export async function getProcessedTemplate(): Promise<string> {
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
-  // Tall rectangle covering the full face area vertically (? body + dot)
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(
-    c.width  * 0.31,
-    c.height * 0.06,
-    c.width  * 0.32,
-    c.height * 0.26
-  );
 
   _processedTemplate = c.toDataURL("image/png");
   _processedVersion = TPL_VERSION;

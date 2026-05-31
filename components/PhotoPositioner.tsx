@@ -209,15 +209,6 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
             <img src="/card-template.jpg" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ zIndex: 0 }} />
           )}
 
-          {/* Black overlay covering the entire face/? area — works regardless of template load */}
-          <div style={{
-            position: "absolute",
-            left: "31%", top: "6%",
-            width: "32%", height: "26%",
-            background: "#000",
-            zIndex: 1,
-            pointerEvents: "none",
-          }} />
 
           {/* Dashed guide showing silhouette ellipse boundary */}
           <svg
