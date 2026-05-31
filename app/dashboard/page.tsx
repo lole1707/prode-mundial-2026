@@ -93,9 +93,9 @@ export default function Dashboard() {
     load();
   }, [user]);
 
-  // Re-fetch matches+predictions when switching to miperfil so stats are fresh
+  // Re-fetch matches+predictions when switching to resultados, pronosticos or miperfil
   useEffect(() => {
-    if (tab !== "miperfil" || !user) return;
+    if (!["resultados", "pronosticos", "miperfil"].includes(tab) || !user) return;
     Promise.all([fetch("/api/matches"), fetch(`/api/predictions?userId=${user.uid}`)]).then(async ([mr, pr]) => {
       if (mr.ok) {
         const data = await mr.json() as Record<string, unknown>[];
