@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v13";
+const TPL_VERSION = "v14";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -37,17 +37,14 @@ export async function getProcessedTemplate(): Promise<string> {
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
+  // Tall rectangle covering the full face area vertically (? body + dot)
   ctx.fillStyle = "#000000";
-
-  // Paint the "?" body (the curved top part)
-  ctx.beginPath();
-  ctx.ellipse(c.width * 0.47, c.height * 0.16, c.width * 0.17, c.height * 0.108, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Paint the dot of the "?" (the small dot below)
-  ctx.beginPath();
-  ctx.arc(c.width * 0.47, c.height * 0.225, c.width * 0.04, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fillRect(
+    c.width  * 0.28,   // x — left edge of face
+    c.height * 0.01,   // y — top of head
+    c.width  * 0.38,   // width
+    c.height * 0.30    // height — covers full face length
+  );
 
   _processedTemplate = c.toDataURL("image/png");
   _processedVersion = TPL_VERSION;
