@@ -201,7 +201,10 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
             />
           )}
 
-          {/* Raw template — behind photo so photo covers the ? area */}
+          {/* Dark background so the transparent head area looks natural */}
+          <div className="absolute inset-0" style={{ zIndex: 0, background: "#111" }} />
+
+          {/* Raw template on top of dark bg but behind photo — card design visible */}
           <img
             src="/card-template.jpg"
             alt=""

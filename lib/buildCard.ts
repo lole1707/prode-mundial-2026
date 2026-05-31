@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v7";
+const TPL_VERSION = "v8";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -37,16 +37,16 @@ export async function getProcessedTemplate(): Promise<string> {
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
-  // Cut out the "?" by erasing that area with destination-out
-  // The ellipse covers exactly the face/head circle where the ? lives
+  // Cut out the entire black head silhouette (including the ?)
+  // using destination-out so the photo behind shows through
   ctx.save();
   ctx.globalCompositeOperation = "destination-out";
   ctx.beginPath();
   ctx.ellipse(
-    c.width  * 0.47,   // cx
-    c.height * 0.15,   // cy  — upper area where ? is
-    c.width  * 0.19,   // rx
-    c.height * 0.13,   // ry
+    c.width  * 0.47,  // cx — centered
+    c.height * 0.16,  // cy — upper area of card (head position)
+    c.width  * 0.27,  // rx — wide enough to cover ears
+    c.height * 0.16,  // ry — tall enough to cover full head + neck top
     0, 0, Math.PI * 2
   );
   ctx.fill();
@@ -92,8 +92,8 @@ export async function buildCard(
 
   const t = transform ?? defaultTransform(photo);
 
-  // 1. White background so JPEG output has no black bleed
-  ctx.fillStyle = "#ffffff";
+  // 1. Dark background behind photo (head cutout shows photo, not white)
+  ctx.fillStyle = "#111111";
   ctx.fillRect(0, 0, CARD_W, CARD_H);
 
   // 2. Photo behind
