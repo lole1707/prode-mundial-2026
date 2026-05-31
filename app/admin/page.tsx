@@ -148,25 +148,21 @@ export default function AdminPage() {
 
   async function recalculateAll() {
     setRecalculating(true);
-    const finished = matches.filter(m => m.finished && m.homeScore !== null);
-    const allUsersRes = await fetch("/api/admin/users");
-    const allUsers: DBUser[] = allUsersRes.ok ? await allUsersRes.json() : [];
-    for (const u of allUsers) {
-      const predRes = await fetch(`/api/predictions?userId=${u.uid}`);
-      const preds: Record<string, unknown>[] = predRes.ok ? await predRes.json() : [];
-      let total = 0;
-      for (const p of preds) {
-        const match = finished.find(m => m.id === p.match_id);
-        if (match) total += calculatePoints(p.home_score as number, p.away_score as number, match.homeScore!, match.awayScore!, scoring);
-      }
-      await fetch(`${SUPABASE_URL}/rest/v1/users?uid=eq.${u.uid}`, {
-        method: "PATCH",
-        headers: apiHeaders(),
-        body: JSON.stringify({ total_points: total }),
+    try {
+      const res = await fetch("/api/admin/recalculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminUid: user?.uid, scoring }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const usersRes = await fetch("/api/admin/users");
+      if (usersRes.ok) setUsers(await usersRes.json());
+      alert(`✓ ${data.updated} usuarios actualizados (${data.finishedMatches} partidos finalizados).`);
+    } catch (err: unknown) {
+      alert(`✗ ${err instanceof Error ? err.message : "Error"}`);
     }
     setRecalculating(false);
-    alert("Puntajes recalculados.");
   }
 
   // Predefined fake results for the first 8 group matches

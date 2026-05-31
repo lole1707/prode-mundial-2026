@@ -93,8 +93,39 @@ export default function Dashboard() {
     load();
   }, [user]);
 
+  // Re-fetch matches+predictions when switching to miperfil so stats are fresh
   useEffect(() => {
-    if ((tab !== "posiciones" && tab !== "miperfil") || lbLoaded) return;
+    if (tab !== "miperfil" || !user) return;
+    Promise.all([fetch("/api/matches"), fetch(`/api/predictions?userId=${user.uid}`)]).then(async ([mr, pr]) => {
+      if (mr.ok) {
+        const data = await mr.json() as Record<string, unknown>[];
+        setMatches(data.map(m => ({
+          id: m.id as string, homeTeam: m.home_team as string, awayTeam: m.away_team as string,
+          homeFlag: m.home_flag as string, awayFlag: m.away_flag as string,
+          stage: m.stage as Match["stage"], group: m.group_name as string,
+          matchNumber: m.match_number as number, datetime: m.datetime as string,
+          venue: m.venue as string, homeScore: m.home_score as number,
+          awayScore: m.away_score as number, finished: m.finished as boolean,
+        })));
+      }
+      if (pr.ok) {
+        const predData = await pr.json() as Record<string, unknown>[];
+        const map: Record<string, Prediction> = {};
+        predData.forEach(p => {
+          map[p.match_id as string] = {
+            id: p.id as string, userId: p.user_id as string, matchId: p.match_id as string,
+            homeScore: p.home_score as number, awayScore: p.away_score as number,
+            createdAt: p.created_at as string, updatedAt: p.updated_at as string,
+          };
+        });
+        setPredictions(map);
+      }
+    });
+  }, [tab, user]);
+
+  useEffect(() => {
+    if (tab !== "posiciones" && tab !== "miperfil") return;
+    if (lbLoaded && tab === "posiciones") return; // posiciones: load once; miperfil: always refresh
     fetch("/api/admin/users")
       .then(r => r.json())
       .then((data: LeaderboardUser[]) => {
