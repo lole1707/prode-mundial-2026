@@ -60,6 +60,37 @@ export default function Dashboard() {
     if (!loading && user && !user.profileCompleted && !isAdmin) router.push("/profile");
   }, [user, loading, router, isAdmin]);
 
+  // Fetch fresh matches and predictions (called on mount, tab switch, focus, and polling)
+  async function refreshMatches() {
+    if (!user) return;
+    const [cfgRes, matchRes] = await Promise.all([fetch("/api/config"), fetch("/api/matches")]);
+    if (cfgRes.ok) setScoring(await cfgRes.json());
+    if (matchRes.ok) {
+      const data = await matchRes.json() as Record<string, unknown>[];
+      setMatches(data.map(m => ({
+        id: m.id as string, homeTeam: m.home_team as string, awayTeam: m.away_team as string,
+        homeFlag: m.home_flag as string, awayFlag: m.away_flag as string,
+        stage: m.stage as Match["stage"], group: m.group_name as string,
+        matchNumber: m.match_number as number, datetime: m.datetime as string,
+        venue: m.venue as string, homeScore: m.home_score as number,
+        awayScore: m.away_score as number, finished: m.finished as boolean,
+      })));
+    }
+    const predRes = await fetch(`/api/predictions?userId=${user.uid}`);
+    if (predRes.ok) {
+      const predData = await predRes.json() as Record<string, unknown>[];
+      const map: Record<string, Prediction> = {};
+      predData.forEach(p => {
+        map[p.match_id as string] = {
+          id: p.id as string, userId: p.user_id as string, matchId: p.match_id as string,
+          homeScore: p.home_score as number, awayScore: p.away_score as number,
+          createdAt: p.created_at as string, updatedAt: p.updated_at as string,
+        };
+      });
+      setPredictions(map);
+    }
+  }
+
   useEffect(() => {
     if (!user) return;
     async function load() {
@@ -91,6 +122,38 @@ export default function Dashboard() {
       }
     }
     load();
+  }, [user]);
+
+  // Real-time updates: Supabase Realtime + polling every 30s + on tab focus
+  useEffect(() => {
+    if (!user) return;
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let channel: any = null;
+
+    // Try to use Supabase Realtime (requires Realtime enabled on matches table in Supabase dashboard)
+    import("@supabase/supabase-js").then(({ createClient }) => {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+      channel = supabase
+        .channel("matches-live")
+        .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, () => {
+          refreshMatches();
+        })
+        .subscribe();
+    }).catch(() => {});
+
+    // Fallback: poll every 30s + refresh on tab focus
+    const interval = setInterval(() => refreshMatches(), 30_000);
+    const onVisible = () => { if (document.visibilityState === "visible") refreshMatches(); };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      channel?.unsubscribe?.();
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Re-fetch matches+predictions when switching to resultados, pronosticos or miperfil
