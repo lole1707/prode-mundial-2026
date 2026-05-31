@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v5";
+const TPL_VERSION = "v6";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -40,32 +40,28 @@ export async function getProcessedTemplate(): Promise<string> {
   const id = ctx.getImageData(0, 0, c.width, c.height);
   const d = id.data;
 
-  // Silhouette ellipse in image pixel coords
-  const cx = c.width  * SIL_CX;
-  const cy = c.height * SIL_CY;
-  const rx = c.width  * SIL_RX;
-  const ry = c.height * SIL_RY;
+  // Head bounding box — where the white "?" lives (relative coords)
+  const hx1 = c.width  * 0.22;
+  const hx2 = c.width  * 0.72;
+  const hy1 = c.height * 0.02;
+  const hy2 = c.height * 0.32;
 
   for (let pi = 0; pi < d.length / 4; pi++) {
     const px = pi % c.width;
     const py = Math.floor(pi / c.width);
     const i  = pi * 4;
+    const lum = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
 
-    // Everything inside the silhouette ellipse → fully transparent
-    // This removes the "?" and any other element (dark outline, body fill)
-    const dx = (px - cx) / rx;
-    const dy = (py - cy) / ry;
-    if (dx * dx + dy * dy <= 1) {
+    // Inside head zone: remove bright/white pixels (the "?" is white)
+    const inHead = px >= hx1 && px <= hx2 && py >= hy1 && py <= hy2;
+    if (inHead && lum > 180) {
       d[i + 3] = 0;
       continue;
     }
 
-    // Outside ellipse: remove dark border pixels (outline, neck, ears)
-    const lum = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
-    if (lum < 90) {
+    // Everywhere: remove very dark pixels so they don't block the photo edges
+    if (lum < 30) {
       d[i + 3] = 0;
-    } else if (lum < 135) {
-      d[i + 3] = Math.round(((lum - 90) / 45) * 255);
     }
   }
 

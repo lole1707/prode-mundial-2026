@@ -201,24 +201,21 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
             />
           )}
 
-          {/* White background so photo is visible before template loads */}
-          <div className="absolute inset-0 bg-white" style={{ zIndex: 0 }} />
+          {/* Raw template as visible background */}
+          <img
+            src="/card-template.jpg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+            style={{ zIndex: 0 }}
+          />
 
-          {/* Processed template on top: silhouette + dark areas = transparent holes.
-              Photo (z:2) shows through those holes. Card design (teal, logos) stays on top. */}
-          {processedTpl ? (
+          {/* Processed template on top: only the "?" and near-black pixels removed */}
+          {processedTpl && (
             <img
               src={processedTpl}
               alt=""
               className="absolute inset-0 w-full h-full object-fill pointer-events-none"
               style={{ zIndex: 3 }}
-            />
-          ) : (
-            <img
-              src="/card-template.jpg"
-              alt=""
-              className="absolute inset-0 w-full h-full object-fill pointer-events-none"
-              style={{ zIndex: 3, opacity: 0.5 }}
             />
           )}
 
