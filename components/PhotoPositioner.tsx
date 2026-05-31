@@ -196,17 +196,17 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
                 userSelect: "none",
                 pointerEvents: "all",
                 cursor: "grab",
-                zIndex: 2,
+                zIndex: 2, // photo on top of raw template, behind processed template
               }}
             />
           )}
 
-          {/* Raw template as visible background */}
+          {/* Raw template — behind photo so photo covers the ? area */}
           <img
             src="/card-template.jpg"
             alt=""
             className="absolute inset-0 w-full h-full object-fill pointer-events-none"
-            style={{ zIndex: 0 }}
+            style={{ zIndex: 1 }}
           />
 
           {/* Processed template on top: only the "?" and near-black pixels removed */}

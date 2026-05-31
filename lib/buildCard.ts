@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v6";
+const TPL_VERSION = "v7";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -37,35 +37,21 @@ export async function getProcessedTemplate(): Promise<string> {
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
-  const id = ctx.getImageData(0, 0, c.width, c.height);
-  const d = id.data;
+  // Cut out the "?" by erasing that area with destination-out
+  // The ellipse covers exactly the face/head circle where the ? lives
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.beginPath();
+  ctx.ellipse(
+    c.width  * 0.47,   // cx
+    c.height * 0.15,   // cy  — upper area where ? is
+    c.width  * 0.19,   // rx
+    c.height * 0.13,   // ry
+    0, 0, Math.PI * 2
+  );
+  ctx.fill();
+  ctx.restore();
 
-  // Head bounding box — where the white "?" lives (relative coords)
-  const hx1 = c.width  * 0.22;
-  const hx2 = c.width  * 0.72;
-  const hy1 = c.height * 0.02;
-  const hy2 = c.height * 0.32;
-
-  for (let pi = 0; pi < d.length / 4; pi++) {
-    const px = pi % c.width;
-    const py = Math.floor(pi / c.width);
-    const i  = pi * 4;
-    const lum = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
-
-    // Inside head zone: remove bright/white pixels (the "?" is white)
-    const inHead = px >= hx1 && px <= hx2 && py >= hy1 && py <= hy2;
-    if (inHead && lum > 180) {
-      d[i + 3] = 0;
-      continue;
-    }
-
-    // Everywhere: remove very dark pixels so they don't block the photo edges
-    if (lum < 30) {
-      d[i + 3] = 0;
-    }
-  }
-
-  ctx.putImageData(id, 0, 0);
   _processedTemplate = c.toDataURL("image/png");
   _processedVersion = TPL_VERSION;
   return _processedTemplate;
