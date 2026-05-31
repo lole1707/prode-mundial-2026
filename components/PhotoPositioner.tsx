@@ -202,13 +202,12 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
             />
           )}
 
-          {/* Raw template as base — card design visible */}
-          <img
-            src="/card-template.jpg"
-            alt=""
-            className="absolute inset-0 w-full h-full object-fill pointer-events-none"
-            style={{ zIndex: 0 }}
-          />
+          {/* Processed template (? painted black) so lighten blend removes it along with rest of dark silhouette */}
+          {processedTpl ? (
+            <img src={processedTpl} alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ zIndex: 0 }} />
+          ) : (
+            <img src="/card-template.jpg" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ zIndex: 0 }} />
+          )}
 
           {/* No processed template needed — lighten blend on photo handles it */}
 

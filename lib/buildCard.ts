@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v8";
+const TPL_VERSION = "v9";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -37,16 +37,15 @@ export async function getProcessedTemplate(): Promise<string> {
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
 
-  // Cut out the entire black head silhouette (including the ?)
-  // using destination-out so the photo behind shows through
+  // Paint the "?" area BLACK so lighten blend makes it transparent like the rest of the silhouette
   ctx.save();
-  ctx.globalCompositeOperation = "destination-out";
+  ctx.fillStyle = "#000000";
   ctx.beginPath();
   ctx.ellipse(
-    c.width  * 0.47,  // cx — centered
-    c.height * 0.16,  // cy — upper area of card (head position)
-    c.width  * 0.27,  // rx — wide enough to cover ears
-    c.height * 0.16,  // ry — tall enough to cover full head + neck top
+    c.width  * 0.47,  // cx
+    c.height * 0.15,  // cy — face area
+    c.width  * 0.20,  // rx
+    c.height * 0.14,  // ry
     0, 0, Math.PI * 2
   );
   ctx.fill();
@@ -92,11 +91,12 @@ export async function buildCard(
 
   const t = transform ?? defaultTransform(photo);
 
-  // Load raw template (no processing needed — lighten blend handles transparency)
-  const rawTpl = await loadImage("/card-template.jpg");
+  // Use processed template (? painted black) so lighten blend removes it too
+  const tplSrc = await getProcessedTemplate();
+  const tpl2 = await loadImage(tplSrc);
 
-  // 1. Draw raw template first
-  ctx.drawImage(rawTpl, 0, 0, CARD_W, CARD_H);
+  // 1. Draw processed template first
+  ctx.drawImage(tpl2, 0, 0, CARD_W, CARD_H);
 
   // 2. Draw photo with lighten blend:
   //    - Dark areas (black silhouette) = max(0, photo) = photo → photo shows through
