@@ -212,8 +212,8 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
           {/* Black overlay covering the entire face/? area — works regardless of template load */}
           <div style={{
             position: "absolute",
-            left: "27%", top: "1%",
-            width: "40%", height: "30%",
+            left: "31%", top: "6%",
+            width: "32%", height: "26%",
             background: "#000",
             zIndex: 1,
             pointerEvents: "none",

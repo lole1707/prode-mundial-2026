@@ -23,7 +23,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-const TPL_VERSION = "v14";
+const TPL_VERSION = "v15";
 let _processedTemplate: string | null = null;
 let _processedVersion = "";
 
@@ -40,10 +40,10 @@ export async function getProcessedTemplate(): Promise<string> {
   // Tall rectangle covering the full face area vertically (? body + dot)
   ctx.fillStyle = "#000000";
   ctx.fillRect(
-    c.width  * 0.28,   // x — left edge of face
-    c.height * 0.01,   // y — top of head
-    c.width  * 0.38,   // width
-    c.height * 0.30    // height — covers full face length
+    c.width  * 0.31,
+    c.height * 0.06,
+    c.width  * 0.32,
+    c.height * 0.26
   );
 
   _processedTemplate = c.toDataURL("image/png");
