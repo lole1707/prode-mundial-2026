@@ -27,9 +27,12 @@ function calcPoints(
   return cfg.winner;
 }
 
-function noCache(url: string) {
-  // Append timestamp so no CDN/fetch cache ever serves a stale response
-  return `${url}&_t=${Date.now()}`;
+function noStoreHeaders() {
+  return {
+    ...h(),
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    "Pragma": "no-cache",
+  };
 }
 
 async function recalculateAll() {
@@ -37,35 +40,31 @@ async function recalculateAll() {
   let scoring = defaults;
 
   const cfgRes = await fetch(
-    noCache(`${DB_URL}/rest/v1/users?uid=eq.__scoring_config__&select=display_name`),
-    { headers: h() }
+    `${DB_URL}/rest/v1/users?uid=eq.__scoring_config__&select=display_name`,
+    { headers: noStoreHeaders(), cache: "no-store" }
   );
   if (cfgRes.ok) {
     const rows: { display_name: string }[] = await cfgRes.json();
     try { if (rows[0]) scoring = { ...defaults, ...JSON.parse(rows[0].display_name) }; } catch {}
   }
 
-  // ALL finished matches (fresh from DB — timestamp busts any CDN cache)
   const matchRes = await fetch(
-    noCache(`${DB_URL}/rest/v1/matches?finished=eq.true&select=id,home_score,away_score`),
-    { headers: h() }
+    `${DB_URL}/rest/v1/matches?finished=eq.true&select=id,home_score,away_score`,
+    { headers: noStoreHeaders(), cache: "no-store" }
   );
   const finished: { id: string; home_score: number; away_score: number }[] =
     matchRes.ok ? await matchRes.json() : [];
 
-  // All users (excluding scoring config row)
-  // Note: if finished.length === 0, all users get total_points = 0 (correct reset)
   const usersRes = await fetch(
-    noCache(`${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid`),
-    { headers: h() }
+    `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&select=uid`,
+    { headers: noStoreHeaders(), cache: "no-store" }
   );
   const users: { uid: string }[] = usersRes.ok ? await usersRes.json() : [];
 
-  // Calculate each user sequentially to avoid DB write conflicts
   for (const u of users) {
     const predRes = await fetch(
-      noCache(`${DB_URL}/rest/v1/predictions?user_id=eq.${u.uid}&select=match_id,home_score,away_score`),
-      { headers: h() }
+      `${DB_URL}/rest/v1/predictions?user_id=eq.${u.uid}&select=match_id,home_score,away_score`,
+      { headers: noStoreHeaders(), cache: "no-store" }
     );
     const preds: { match_id: string; home_score: number; away_score: number }[] =
       predRes.ok ? await predRes.json() : [];

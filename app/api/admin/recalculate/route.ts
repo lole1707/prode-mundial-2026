@@ -8,6 +8,8 @@ function h(extra?: Record<string, string>) {
     "apikey": SERVICE_KEY,
     "Authorization": `Bearer ${SERVICE_KEY}`,
     "Content-Type": "application/json",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+    "Pragma": "no-cache",
     ...extra,
   };
 }
