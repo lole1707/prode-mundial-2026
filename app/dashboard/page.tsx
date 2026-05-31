@@ -234,6 +234,15 @@ export default function Dashboard() {
     setSaving(null);
   }
 
+  async function deletePrediction(matchId: string) {
+    if (!user) return;
+    setSaving(matchId);
+    await fetch(`/api/predictions?userId=${user.uid}&matchId=${matchId}`, { method: "DELETE" });
+    setPredictions(prev => { const n = { ...prev }; delete n[matchId]; return n; });
+    setDrafts(prev => { const n = { ...prev }; delete n[matchId]; return n; });
+    setSaving(null);
+  }
+
   const visibleMatches = stage === "group"
     ? matches.filter(m => m.stage === "group" && m.group === group)
     : matches.filter(m => m.stage === stage);
@@ -357,12 +366,21 @@ export default function Dashboard() {
                       <p className="text-sm font-semibold text-white">{m.awayTeam}</p>
                     </div>
                   </div>
-                  {canPredict && drafts[m.id] && (
-                    <div className="mt-3 flex justify-end">
-                      <button onClick={() => savePrediction(m.id)} disabled={saving === m.id}
-                        className="text-xs bg-green-600 hover:bg-green-500 disabled:opacity-50 px-4 py-1.5 rounded-lg font-semibold transition-colors">
-                        {saving === m.id ? "..." : "Guardar"}
-                      </button>
+                  {canPredict && (
+                    <div className="mt-3 flex justify-between items-center">
+                      {/* Delete prediction button */}
+                      {predictions[m.id] && !drafts[m.id] && (
+                        <button onClick={() => deletePrediction(m.id)} disabled={saving === m.id}
+                          className="text-xs text-gray-500 hover:text-red-400 disabled:opacity-50 px-2 py-1.5 rounded-lg transition-colors">
+                          {saving === m.id ? "..." : "✕ Borrar pronóstico"}
+                        </button>
+                      )}
+                      {drafts[m.id] && (
+                        <button onClick={() => savePrediction(m.id)} disabled={saving === m.id}
+                          className="text-xs bg-green-600 hover:bg-green-500 disabled:opacity-50 px-4 py-1.5 rounded-lg font-semibold transition-colors ml-auto">
+                          {saving === m.id ? "..." : "Guardar"}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

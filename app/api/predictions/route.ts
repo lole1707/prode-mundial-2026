@@ -25,6 +25,22 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(await res.json());
 }
 
+export async function DELETE(req: NextRequest) {
+  const userId = req.nextUrl.searchParams.get("userId");
+  const matchId = req.nextUrl.searchParams.get("matchId");
+  if (!userId || !matchId) return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
+
+  const res = await fetch(
+    `${DB_URL}/rest/v1/predictions?user_id=eq.${userId}&match_id=eq.${matchId}`,
+    { method: "DELETE", headers: h({ "Prefer": "return=minimal" }) }
+  );
+  if (!res.ok) return NextResponse.json({ error: await res.text() }, { status: res.status });
+
+  // Recalculate points after deletion
+  recalculateUser(userId).catch(() => {});
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const res = await fetch(`${DB_URL}/rest/v1/predictions?on_conflict=user_id,match_id`, {
