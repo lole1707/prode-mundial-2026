@@ -33,9 +33,9 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
 
   // Guide ellipse — higher and larger to better frame the face area
   const gcx = displayW  * 0.47;
-  const gcy = displayH  * 0.24;   // higher up
-  const grx = displayW  * 0.44;   // wider
-  const gry = displayH  * 0.24;   // taller (centrado en cara+hombros)
+  const gcy = displayH  * 0.26;   // slightly lower to include neck
+  const grx = displayW  * 0.46;   // wider
+  const gry = displayH  * 0.30;   // taller — covers head + neck
 
   useEffect(() => {
     const el = containerRef.current;
