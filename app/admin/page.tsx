@@ -52,6 +52,10 @@ export default function AdminPage() {
   const [scoringMsg, setScoringMsg] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [resetUid, setResetUid] = useState<string | null>(null);
+  const [resetPass, setResetPass] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState<{ uid: string; msg: string } | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [simMsg, setSimMsg] = useState("");
   const [monitor, setMonitor] = useState<MonitorData | null>(null);
@@ -237,6 +241,26 @@ export default function AdminPage() {
     setSimulating(false);
   }
 
+  async function handleResetPassword(uid: string) {
+    if (!resetPass || resetPass.length < 4) return;
+    setResetting(true);
+    try {
+      const res = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, newPassword: resetPass, adminUid: user?.uid }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setResetMsg({ uid, msg: `✓ Contraseña cambiada` });
+      setResetUid(null);
+      setResetPass("");
+    } catch (err: unknown) {
+      setResetMsg({ uid, msg: `✗ ${err instanceof Error ? err.message : "Error"}` });
+    }
+    setResetting(false);
+  }
+
   async function deleteUser(uid: string) {
     setDeleting(true);
     try {
@@ -371,6 +395,12 @@ export default function AdminPage() {
                         {grupo && <p className="text-xs text-gray-500">{grupo}</p>}
                       </div>
                       <span className="text-green-400 font-bold mr-2">{u.total_points} pts</span>
+                      {/* Reset password button */}
+                      <button onClick={() => { setResetUid(resetUid === u.uid ? null : u.uid); setResetPass(""); setResetMsg(null); }}
+                        className="text-xs text-gray-500 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-blue-900/20">
+                        🔑
+                      </button>
+
                       {!isConfirming ? (
                         <button onClick={() => setConfirmDelete(u.uid)} className="text-xs text-gray-500 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-red-900/20">
                           🗑
@@ -387,6 +417,30 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Inline reset password form */}
+                    {resetUid === u.uid && (
+                      <div className="mt-3 flex items-center gap-2 border-t border-gray-800 pt-3">
+                        <input
+                          type="text"
+                          value={resetPass}
+                          onChange={e => setResetPass(e.target.value)}
+                          placeholder="Nueva contraseña (mín. 4)"
+                          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                        />
+                        <button onClick={() => handleResetPassword(u.uid)} disabled={resetting || resetPass.length < 4}
+                          className="text-xs bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg">
+                          {resetting ? "..." : "Cambiar"}
+                        </button>
+                        <button onClick={() => { setResetUid(null); setResetPass(""); }}
+                          className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg">
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                    {resetMsg?.uid === u.uid && (
+                      <p className={`text-xs mt-1 ${resetMsg.msg.startsWith("✓") ? "text-green-400" : "text-red-400"}`}>{resetMsg.msg}</p>
+                    )}
                   </div>
                 );
               })}
