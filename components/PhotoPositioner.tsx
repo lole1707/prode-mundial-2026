@@ -25,11 +25,17 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
 
   const displayH = displayW * (CARD_H / CARD_W);
 
-  // Silhouette ellipse in display coords
+  // Silhouette ellipse in display coords (used for photo init positioning)
   const scx = displayW * SIL_CX;
   const scy = displayH * SIL_CY;
   const srx = displayW * SIL_RX;
   const sry = displayH * SIL_RY;
+
+  // Guide ellipse — higher and larger to better frame the face area
+  const gcx = displayW  * 0.47;
+  const gcy = displayH  * 0.24;   // higher up
+  const grx = displayW  * 0.44;   // wider
+  const gry = displayH  * 0.24;   // taller (centrado en cara+hombros)
 
   useEffect(() => {
     const el = containerRef.current;
@@ -211,8 +217,8 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
             style={{ width: "100%", height: "100%", zIndex: 4 }}
             viewBox={`0 0 ${displayW} ${displayH}`}
           >
-            <ellipse cx={scx} cy={scy} rx={srx} ry={sry}
-              fill="none" stroke="rgba(74,222,128,0.6)" strokeWidth="1.5" strokeDasharray="8 5" />
+            <ellipse cx={gcx} cy={gcy} rx={grx} ry={gry}
+              fill="none" stroke="rgba(74,222,128,0.8)" strokeWidth="2" strokeDasharray="10 5" />
           </svg>
         </div>
       </div>
