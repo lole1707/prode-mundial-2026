@@ -8,6 +8,7 @@ export interface AuthUser {
   displayName: string;
   profileCompleted: boolean;
   photo?: string;
+  grupo?: string;
 }
 
 interface AuthContextType {
@@ -21,11 +22,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function parseDisplayName(raw: string): { displayName: string; profileCompleted: boolean; photo?: string } {
+function parseDisplayName(raw: string): { displayName: string; profileCompleted: boolean; photo?: string; grupo?: string } {
   try {
     const p = JSON.parse(raw);
-    if (p.nombre && p.apellido && p.apodo && p.edad && p.sector) {
-      return { displayName: p.apodo, profileCompleted: true, photo: p.photo };
+    // Completed profile
+    if (p.nombre && p.apellido && p.apodo && p.edad) {
+      return { displayName: p.apodo, profileCompleted: true, photo: p.photo, grupo: p.grupo };
+    }
+    // Pre-profile: { grupo, _name }
+    if (p._name) {
+      return { displayName: p._name, profileCompleted: false, grupo: p.grupo };
     }
   } catch {}
   return { displayName: raw, profileCompleted: false };
@@ -72,8 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profileRes = await fetch(`/api/profile?uid=${uid}`);
     const raw: string = profileRes.ok ? ((await profileRes.json()) ?? username) : username;
 
-    const { displayName, profileCompleted, photo } = parseDisplayName(raw);
-    const authUser: AuthUser = { uid, username, displayName, profileCompleted, photo };
+    const { displayName, profileCompleted, photo, grupo } = parseDisplayName(raw);
+    const authUser: AuthUser = { uid, username, displayName, profileCompleted, photo, grupo };
     localStorage.setItem("prode_user", JSON.stringify(authUser));
     setUser(authUser);
   };

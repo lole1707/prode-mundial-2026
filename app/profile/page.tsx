@@ -62,9 +62,11 @@ export default function ProfilePage() {
     return () => { clearTimeout(t); setCompositing(false); };
   }, [photoPreview, apellido, nombre, edad, altura, sector, photoTransform, positioning]);
 
+  const isProwork = user?.grupo === "Prowork";
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!sector) { setError("Elegí un sector"); return; }
+    if (isProwork && !sector) { setError("Elegí un sector"); return; }
     if (!newPassword) { setError("Tenés que elegir una contraseña nueva"); return; }
     if (newPassword.length < 4) { setError("La contraseña debe tener al menos 4 caracteres"); return; }
     if (newPassword !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
@@ -168,16 +170,18 @@ export default function ProfilePage() {
             <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="Contraseña nueva" className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
             <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required placeholder="Confirmar contraseña" className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
           </div>
-          <div>
-            <p className="text-sm text-gray-400 mb-2 font-medium">Sector</p>
-            <div className="grid grid-cols-2 gap-3">
-              {(["Administración", "Taller"] as const).map(s => (
-                <button key={s} type="button" onClick={() => setSector(s)} className={`py-4 rounded-xl font-semibold text-sm border-2 transition-all ${sector === s ? "bg-green-600 border-green-500 text-white scale-[1.02]" : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500"}`}>
-                  {s === "Administración" ? "🏢 Administración" : "🔧 Taller"}
-                </button>
-              ))}
+          {isProwork && (
+            <div>
+              <p className="text-sm text-gray-400 mb-2 font-medium">Sector</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["Administración", "Taller"] as const).map(s => (
+                  <button key={s} type="button" onClick={() => setSector(s)} className={`py-4 rounded-xl font-semibold text-sm border-2 transition-all ${sector === s ? "bg-green-600 border-green-500 text-white scale-[1.02]" : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500"}`}>
+                    {s === "Administración" ? "🏢 Administración" : "🔧 Taller"}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           {error && <p className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">{error}</p>}
           <button type="submit" disabled={saving} className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-colors text-base mt-2">
             {saving ? "Guardando..." : "Guardar y entrar →"}

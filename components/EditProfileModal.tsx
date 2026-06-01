@@ -69,7 +69,8 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!sector) { setError("Elegí un sector"); return; }
+    const isProwork = current.grupo === "Prowork";
+    if (isProwork && !sector) { setError("Elegí un sector"); return; }
     if (newPassword && newPassword.length < 4) { setError("La contraseña debe tener al menos 4 caracteres"); return; }
     if (newPassword && newPassword !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
     if (!user) return;
@@ -184,6 +185,7 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
             <input type="text" value={altura} onChange={e => setAltura(e.target.value)} placeholder="Altura (ej: 1.74)" className={INPUT} />
           </div>
 
+          {current.grupo === "Prowork" && (
           <div>
             <p className="text-sm text-gray-400 mb-2">Sector</p>
             <div className="grid grid-cols-2 gap-3">
@@ -195,6 +197,7 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
               ))}
             </div>
           </div>
+          )}
 
           {/* Optional password change */}
           <div className="border-t border-gray-800 pt-4">
