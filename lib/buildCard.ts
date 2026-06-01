@@ -5,7 +5,7 @@ export const SIL_CX = 0.47;
 export const SIL_CY = 0.37;
 export const SIL_RX = 0.38;
 export const SIL_RY = 0.35;
-export const INFO_Y  = 0.73;
+export const INFO_Y  = 0.80;
 
 export interface PhotoTransform {
   x: number;
@@ -124,7 +124,8 @@ export async function buildCard(
   // 4. Info band overlay + text
   const bandY = CARD_H * INFO_Y;
   const bandH = CARD_H - bandY;
-  ctx.fillStyle = "rgba(0,0,0,0.80)";
+  // Solid teal band matching the card's celeste color
+  ctx.fillStyle = "#00a8b8";
   ctx.fillRect(0, bandY, CARD_W, bandH);
 
   const pad = CARD_W * 0.06;
@@ -144,13 +145,13 @@ export async function buildCard(
 
   // Edad | Altura — smaller condensed
   const info = [edad ? `${edad} años` : "", altura ? `${altura}m` : ""].filter(Boolean).join("  |  ");
-  ctx.fillStyle = "#e0e0e0";
+  ctx.fillStyle = "#ffffff";
   ctx.font = `${Math.round(CARD_W * 0.058)}px ${FONT}, Arial, sans-serif`;
   ctx.fillText(info, pad, bandY + bandH * 0.38);
 
   // Sector — colored, condensed
   if (sector) {
-    ctx.fillStyle = "#4ade80";
+    ctx.fillStyle = "#ffffff";
     ctx.font = `${Math.round(CARD_W * 0.065)}px ${FONT}, Arial, sans-serif`;
     ctx.fillText(sector.toUpperCase(), pad, bandY + bandH * 0.64);
   }
