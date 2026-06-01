@@ -14,7 +14,7 @@ function h() {
 
 export async function GET() {
   const res = await fetch(
-    `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&order=total_points.desc`,
+    `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&uid=neq.__groups_config__&order=total_points.desc`,
     { headers: h(), cache: "no-store" }
   );
   if (!res.ok) return NextResponse.json([], { status: res.status });
