@@ -108,33 +108,52 @@ export async function buildCard(
   ctx.drawImage(photo, t.x, t.y, t.w, t.h);
   ctx.restore();
 
+  // Load Bebas Neue — the condensed display font used on Panini cards
+  try {
+    const bbn = new FontFace("Bebas Neue",
+      "url(https://fonts.gstatic.com/s/bebasneue/v14/JTUSjIg69CK48gW7PXooxW5rygbi49c.woff2)"
+    );
+    await bbn.load();
+    (document.fonts as FontFaceSet).add(bbn);
+  } catch { /* fallback to Arial if font load fails */ }
+
+  const FONT = (document.fonts as FontFaceSet).check("1px 'Bebas Neue'")
+    ? "'Bebas Neue'"
+    : "Arial";
+
   // 4. Info band overlay + text
   const bandY = CARD_H * INFO_Y;
   const bandH = CARD_H - bandY;
-  ctx.fillStyle = "rgba(0,0,0,0.72)";
+  ctx.fillStyle = "rgba(0,0,0,0.80)";
   ctx.fillRect(0, bandY, CARD_W, bandH);
 
   const pad = CARD_W * 0.06;
+
+  // APELLIDO NOMBRE — large condensed uppercase
   const nameText = `${apellido.toUpperCase()} ${nombre.toUpperCase()}`;
   ctx.fillStyle = "#ffffff";
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
-  let fs = Math.round(CARD_W * 0.072);
-  ctx.font = `bold ${fs}px Arial, sans-serif`;
+  let fs = Math.round(CARD_W * 0.09);
+  ctx.font = `${fs}px ${FONT}, Arial, sans-serif`;
   while (ctx.measureText(nameText).width > CARD_W - pad * 2 && fs > 16) {
     fs -= 2;
-    ctx.font = `bold ${fs}px Arial, sans-serif`;
+    ctx.font = `${fs}px ${FONT}, Arial, sans-serif`;
   }
   ctx.fillText(nameText, pad, bandY + bandH * 0.06);
 
+  // Edad | Altura — smaller condensed
   const info = [edad ? `${edad} años` : "", altura ? `${altura}m` : ""].filter(Boolean).join("  |  ");
-  ctx.fillStyle = "#cccccc";
-  ctx.font = `${Math.round(CARD_W * 0.048)}px Arial, sans-serif`;
+  ctx.fillStyle = "#e0e0e0";
+  ctx.font = `${Math.round(CARD_W * 0.058)}px ${FONT}, Arial, sans-serif`;
   ctx.fillText(info, pad, bandY + bandH * 0.38);
 
-  ctx.fillStyle = "#4ade80";
-  ctx.font = `bold ${Math.round(CARD_W * 0.052)}px Arial, sans-serif`;
-  ctx.fillText(sector.toUpperCase(), pad, bandY + bandH * 0.64);
+  // Sector — colored, condensed
+  if (sector) {
+    ctx.fillStyle = "#4ade80";
+    ctx.font = `${Math.round(CARD_W * 0.065)}px ${FONT}, Arial, sans-serif`;
+    ctx.fillText(sector.toUpperCase(), pad, bandY + bandH * 0.64);
+  }
 
   return new Promise((res, rej) =>
     canvas.toBlob(b => (b ? res(b) : rej(new Error("toBlob failed"))), "image/jpeg", 0.9)
