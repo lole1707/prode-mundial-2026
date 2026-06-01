@@ -453,13 +453,21 @@ export default function Dashboard() {
             );
           }
 
-          // Regular user: only their group
-          const lista = myGrupo
-            ? lbUsers.filter(u => getGrupos(u.display_name).some(g => myGrupos.includes(g)))
-            : lbUsers;
+          // Regular user: one section per group they belong to, side by side
+          if (myGrupos.length === 0) {
+            const lista = lbUsers;
+            if (lista.length === 0) return <p className="text-gray-500 text-center py-12">Aún no hay participantes.</p>;
+            return <GrupoList lista={lista} />;
+          }
 
-          if (lista.length === 0) return <p className="text-gray-500 text-center py-12">Aún no hay participantes en tu grupo.</p>;
-          return <GrupoList lista={lista} />;
+          return (
+            <div className={`grid gap-4 items-start ${myGrupos.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+              {myGrupos.map(g => {
+                const lista = lbUsers.filter(u => getGrupos(u.display_name).includes(g));
+                return <GrupoList key={g} title={myGrupos.length > 1 ? g : undefined} lista={lista} />;
+              })}
+            </div>
+          );
         })()}
       </div>
 
