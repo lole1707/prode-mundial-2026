@@ -5,7 +5,8 @@ export interface UserProfile {
   edad: string;
   altura: string;
   sector: string;
-  grupo?: string;
+  grupos?: string[];   // multiple groups
+  grupo?: string;      // legacy single group (backward compat)
   photo?: string;
 }
 
@@ -28,11 +29,19 @@ export function getDisplayName(displayName: string): string {
   return displayName;
 }
 
-export function getGrupo(displayName: string): string | undefined {
+// Returns all groups a user belongs to (supports both legacy and new format)
+export function getGrupos(displayName: string): string[] {
   try {
     const p = JSON.parse(displayName);
-    return p.grupo ?? undefined;
-  } catch { return undefined; }
+    if (Array.isArray(p.grupos) && p.grupos.length > 0) return p.grupos;
+    if (p.grupo) return [p.grupo];
+  } catch {}
+  return [];
+}
+
+// Legacy: returns first group (or undefined)
+export function getGrupo(displayName: string): string | undefined {
+  return getGrupos(displayName)[0];
 }
 
 export function getPhoto(displayName: string): string | undefined {

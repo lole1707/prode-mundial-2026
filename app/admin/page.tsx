@@ -7,14 +7,14 @@ import { Match } from "@/lib/types";
 import { FIXTURE } from "@/lib/fixture";
 import { calculatePoints, ScoringConfig } from "@/lib/scoring";
 import { DEFAULTS } from "@/app/api/config/route";
-import { getDisplayName, getPhoto, getGrupo } from "@/lib/profile";
+import { getDisplayName, getPhoto, getGrupos } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
-type Tab = "fixture" | "users" | "scoring" | "monitor";
+type Tab = "fixture" | "users" | "grupos" | "scoring" | "monitor";
 
 interface MonitorData {
   tables: { users: number; matches: number; predictions: number };
@@ -52,6 +52,10 @@ export default function AdminPage() {
   const [scoringMsg, setScoringMsg] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [availableGroups, setAvailableGroups] = useState<string[]>([]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [groupMsg, setGroupMsg] = useState("");
+  const [assignUid, setAssignUid] = useState<string | null>(null);
   const [resetUid, setResetUid] = useState<string | null>(null);
   const [resetPass, setResetPass] = useState("");
   const [resetting, setResetting] = useState(false);
@@ -86,6 +90,10 @@ export default function AdminPage() {
     fetch("/api/admin/users")
       .then(r => r.json())
       .then((data: DBUser[]) => setUsers(data ?? []));
+
+    fetch("/api/admin/groups")
+      .then(r => r.json())
+      .then((data: string[]) => setAvailableGroups(data ?? []));
   }, [isAdmin]);
 
   async function syncFromAPI() {
@@ -241,6 +249,38 @@ export default function AdminPage() {
     setSimulating(false);
   }
 
+  async function createGroup() {
+    if (!newGroupName.trim()) return;
+    setGroupMsg("");
+    const res = await fetch("/api/admin/groups", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminUid: user?.uid, name: newGroupName.trim() }),
+    });
+    const data = await res.json();
+    if (res.ok) { setAvailableGroups(data.groups); setNewGroupName(""); setGroupMsg("✓ Grupo creado"); }
+    else setGroupMsg(`✗ ${data.error}`);
+  }
+
+  async function deleteGroup(name: string) {
+    const res = await fetch("/api/admin/groups", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminUid: user?.uid, name }),
+    });
+    const data = await res.json();
+    if (res.ok) setAvailableGroups(data.groups);
+  }
+
+  async function assignGroups(uid: string, grupos: string[]) {
+    await fetch("/api/admin/assign-groups", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminUid: user?.uid, uid, grupos }),
+    });
+    // Refresh user list
+    const r = await fetch("/api/admin/users");
+    if (r.ok) setUsers(await r.json());
+    setAssignUid(null);
+  }
+
   async function handleResetPassword(uid: string) {
     if (!resetPass || resetPass.length < 4) return;
     setResetting(true);
@@ -325,7 +365,7 @@ export default function AdminPage() {
       <div className="max-w-3xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">Panel de Admin</h1>
         <div className="flex flex-wrap gap-2 mb-6 bg-gray-800 p-1 rounded-xl w-fit">
-          {(["fixture","users","scoring","monitor"] as Tab[]).map(t => (
+          {(["fixture","users","grupos","scoring","monitor"] as Tab[]).map(t => (
             <button key={t} onClick={() => {
               setTab(t);
               if (t === "monitor" && !monitor) {
@@ -334,7 +374,7 @@ export default function AdminPage() {
               }
             }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-green-600 text-white" : "text-gray-400 hover:text-white"}`}>
-              {t === "fixture" ? "Fixture" : t === "users" ? "Usuarios" : t === "scoring" ? "Puntajes" : "📊 Monitor"}
+              {t === "fixture" ? "Fixture" : t === "users" ? "Usuarios" : t === "grupos" ? "Grupos" : t === "scoring" ? "Puntajes" : "📊 Monitor"}
             </button>
           ))}
         </div>
@@ -348,8 +388,8 @@ export default function AdminPage() {
                 <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} required placeholder="Usuario (ej: pedro)" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={4} placeholder="Contraseña (mín. 4 caracteres)" className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
                 <select value={newGrupo} onChange={e => setNewGrupo(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500">
-                  <option value="">— Grupo (opcional) —</option>
-                  {["Prowork","Familia","Amigos","Otros 1","Otros 2","Otros 3"].map(g => (
+                  <option value="">— Grupo inicial (opcional) —</option>
+                  {availableGroups.map(g => (
                     <option key={g} value={g}>{g}</option>
                   ))}
                 </select>
@@ -360,7 +400,7 @@ export default function AdminPage() {
               </form>
             </div>
             {(() => {
-              const grupos = Array.from(new Set(users.map(u => getGrupo(u.display_name) ?? "Sin grupo"))).sort();
+              const grupos = Array.from(new Set(users.flatMap(u => getGrupos(u.display_name).length ? getGrupos(u.display_name) : ["Sin grupo"]))).sort();
               return grupos.length > 1 ? (
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className="text-xs text-gray-500 self-center">Filtrar:</span>
@@ -373,12 +413,12 @@ export default function AdminPage() {
                 </div>
               ) : null;
             })()}
-            <h2 className="text-lg font-semibold mb-3">Participantes ({users.filter(u => !newGrupo || (getGrupo(u.display_name) ?? "Sin grupo") === newGrupo).length})</h2>
+            <h2 className="text-lg font-semibold mb-3">Participantes ({users.filter(u => !newGrupo || getGrupos(u.display_name).includes(newGrupo) || (getGrupos(u.display_name).length === 0 && newGrupo === "Sin grupo")).length})</h2>
             <div className="space-y-2">
-              {users.filter(u => !newGrupo || (getGrupo(u.display_name) ?? "Sin grupo") === newGrupo).map(u => {
+              {users.filter(u => !newGrupo || getGrupos(u.display_name).includes(newGrupo) || (getGrupos(u.display_name).length === 0 && newGrupo === "Sin grupo")).map(u => {
                 const name = getDisplayName(u.display_name);
                 const photo = getPhoto(u.display_name);
-                const grupo = getGrupo(u.display_name);
+                const grupos = getGrupos(u.display_name);
                 const isConfirming = confirmDelete === u.uid;
                 return (
                   <div key={u.uid} className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
@@ -392,9 +432,20 @@ export default function AdminPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{name}</p>
-                        {grupo && <p className="text-xs text-gray-500">{grupo}</p>}
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {grupos.map(g => (
+                            <span key={g} className="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">{g}</span>
+                          ))}
+                          {grupos.length === 0 && <span className="text-xs text-gray-600">Sin grupo</span>}
+                        </div>
                       </div>
                       <span className="text-green-400 font-bold mr-2">{u.total_points} pts</span>
+                      {/* Assign groups button */}
+                      <button onClick={() => setAssignUid(assignUid === u.uid ? null : u.uid)}
+                        className="text-xs text-gray-500 hover:text-green-400 transition-colors px-2 py-1 rounded hover:bg-green-900/20">
+                        👥
+                      </button>
+
                       {/* Reset password button */}
                       <button onClick={() => { setResetUid(resetUid === u.uid ? null : u.uid); setResetPass(""); setResetMsg(null); }}
                         className="text-xs text-gray-500 hover:text-blue-400 transition-colors px-2 py-1 rounded hover:bg-blue-900/20">
@@ -441,9 +492,79 @@ export default function AdminPage() {
                     {resetMsg?.uid === u.uid && (
                       <p className={`text-xs mt-1 ${resetMsg.msg.startsWith("✓") ? "text-green-400" : "text-red-400"}`}>{resetMsg.msg}</p>
                     )}
+
+                    {/* Inline assign groups */}
+                    {assignUid === u.uid && (
+                      <div className="mt-3 border-t border-gray-800 pt-3">
+                        <p className="text-xs text-gray-400 mb-2">Grupos del usuario</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {availableGroups.map(g => {
+                            const inGroup = grupos.includes(g);
+                            return (
+                              <label key={g} className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border cursor-pointer transition-colors ${inGroup ? "bg-green-700 border-green-600 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500"}`}>
+                                <input type="checkbox" className="hidden" checked={inGroup}
+                                  onChange={() => {
+                                    const next = inGroup ? grupos.filter(x => x !== g) : [...grupos, g];
+                                    assignGroups(u.uid, next);
+                                  }}
+                                />
+                                {g}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        {availableGroups.length === 0 && <p className="text-xs text-gray-600">Crea grupos en la pestaña Grupos primero.</p>}
+                        <button onClick={() => setAssignUid(null)} className="text-xs text-gray-500 hover:text-white">Cerrar</button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {tab === "grupos" && (
+          <div className="space-y-6">
+            {/* Create group */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+              <h2 className="text-lg font-semibold mb-4">Crear grupo</h2>
+              <div className="flex gap-3">
+                <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && createGroup()}
+                  placeholder="Nombre del grupo (ej: Trabajo, Familia...)"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500" />
+                <button onClick={createGroup} className="bg-green-600 hover:bg-green-500 text-white font-semibold px-5 py-3 rounded-lg transition-colors">
+                  Crear
+                </button>
+              </div>
+              {groupMsg && <p className={`text-sm mt-2 ${groupMsg.startsWith("✓") ? "text-green-400" : "text-red-400"}`}>{groupMsg}</p>}
+            </div>
+
+            {/* Group list */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+              <h2 className="text-lg font-semibold mb-4">Grupos existentes ({availableGroups.length})</h2>
+              {availableGroups.length === 0 ? (
+                <p className="text-gray-500 text-sm">Aún no hay grupos creados.</p>
+              ) : (
+                <div className="space-y-2">
+                  {availableGroups.map(g => {
+                    const count = users.filter(u => getGrupos(u.display_name).includes(g)).length;
+                    return (
+                      <div key={g} className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+                        <div>
+                          <p className="font-medium text-white">{g}</p>
+                          <p className="text-xs text-gray-500">{count} participante{count !== 1 ? "s" : ""}</p>
+                        </div>
+                        <button onClick={() => deleteGroup(g)}
+                          className="text-xs text-gray-500 hover:text-red-400 px-2 py-1 rounded hover:bg-red-900/20 transition-colors">
+                          🗑 Eliminar
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}

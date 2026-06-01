@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
-import { getDisplayName, getPhoto, getGrupo } from "@/lib/profile";
+import { getDisplayName, getPhoto, getGrupos } from "@/lib/profile";
 
 interface LeaderboardUser { uid: string; display_name: string; total_points: number; }
 
@@ -108,7 +108,7 @@ export default function Leaderboard() {
   );
 
   // Group users by their grupo
-  const grupos = Array.from(new Set(users.map(u => getGrupo(u.display_name) ?? "Sin grupo"))).sort();
+  const grupos = Array.from(new Set(users.flatMap(u => getGrupos(u.display_name).length ? getGrupos(u.display_name) : ["Sin grupo"]))).sort();
 
   return (
     <div className="min-h-screen">
@@ -124,7 +124,7 @@ export default function Leaderboard() {
               <GrupoSection
                 key={g}
                 title={g}
-                lista={users.filter(u => (getGrupo(u.display_name) ?? "Sin grupo") === g)}
+                lista={users.filter(u => getGrupos(u.display_name).includes(g) || (getGrupos(u.display_name).length === 0 && g === "Sin grupo"))}
                 currentUid={user?.uid}
               />
             ))}

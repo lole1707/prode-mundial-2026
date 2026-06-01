@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Match, Prediction } from "@/lib/types";
 import { calculatePoints, ScoringConfig } from "@/lib/scoring";
 import { DEFAULTS } from "@/app/api/config/route";
-import { getDisplayName, getPhoto, parseProfile, getGrupo } from "@/lib/profile";
+import { getDisplayName, getPhoto, parseProfile, getGrupos } from "@/lib/profile";
 import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 import EditProfileModal from "@/components/EditProfileModal";
@@ -391,8 +391,9 @@ export default function Dashboard() {
 
         {/* POSICIONES */}
         {tab === "posiciones" && (() => {
-          const myGrupo = getGrupo(lbUsers.find(u => u.uid === user?.uid)?.display_name ?? "") ?? "";
-          const grupos = Array.from(new Set(lbUsers.map(u => getGrupo(u.display_name) ?? "").filter(Boolean))).sort();
+          const myGrupos = getGrupos(lbUsers.find(u => u.uid === user?.uid)?.display_name ?? "");
+          const myGrupo = myGrupos[0] ?? "";
+          const grupos = Array.from(new Set(lbUsers.flatMap(u => getGrupos(u.display_name)))).sort();
 
           // Helper: render a ranked list for a set of users
           function GrupoList({ title, lista }: { title?: string; lista: typeof lbUsers }) {
@@ -445,7 +446,7 @@ export default function Dashboard() {
             return (
               <div className="grid grid-cols-2 gap-4 items-start">
                 {gruposParaMostrar.map(g => {
-                  const lista = lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === g);
+                  const lista = lbUsers.filter(u => getGrupos(u.display_name).includes(g));
                   return <GrupoList key={g || "sin-grupo"} title={g || "Sin grupo"} lista={lista} />;
                 })}
               </div>
@@ -454,7 +455,7 @@ export default function Dashboard() {
 
           // Regular user: only their group
           const lista = myGrupo
-            ? lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === myGrupo)
+            ? lbUsers.filter(u => getGrupos(u.display_name).some(g => myGrupos.includes(g)))
             : lbUsers;
 
           if (lista.length === 0) return <p className="text-gray-500 text-center py-12">Aún no hay participantes en tu grupo.</p>;
