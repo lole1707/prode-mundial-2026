@@ -29,12 +29,12 @@ interface LeaderboardUser { uid: string; display_name: string; total_points: num
 function Avatar({ photo, name, size }: { photo?: string; name: string; size: "lg" | "sm" }) {
   if (size === "lg") {
     return photo
-      ? <img src={photo} alt={name} className="w-24 h-24 rounded-full object-cover border-4 border-yellow-400 shadow-lg" />
-      : <div className="w-24 h-24 rounded-full bg-gray-700 border-4 border-yellow-400 flex items-center justify-center text-3xl font-bold text-gray-300">{name[0]?.toUpperCase() ?? "?"}</div>;
+      ? <img src={photo} alt={name} className="w-28 h-[157px] rounded-xl object-cover border-2 border-yellow-400 shadow-lg flex-shrink-0" />
+      : <div className="w-28 h-[157px] rounded-xl bg-gray-700 border-2 border-yellow-400 flex items-center justify-center text-3xl font-bold text-gray-300 flex-shrink-0">{name[0]?.toUpperCase() ?? "?"}</div>;
   }
   return photo
-    ? <img src={photo} alt={name} className="w-10 h-10 rounded-full object-cover border-2 border-gray-700 flex-shrink-0" />
-    : <div className="w-10 h-10 rounded-full bg-gray-700 border-2 border-gray-600 flex items-center justify-center text-sm font-bold text-gray-300 flex-shrink-0">{name[0]?.toUpperCase() ?? "?"}</div>;
+    ? <img src={photo} alt={name} className="w-10 h-14 rounded-lg object-cover border border-gray-600 flex-shrink-0" />
+    : <div className="w-10 h-14 rounded-lg bg-gray-700 border border-gray-600 flex items-center justify-center text-sm font-bold text-gray-300 flex-shrink-0">{name[0]?.toUpperCase() ?? "?"}</div>;
 }
 
 export default function Dashboard() {
