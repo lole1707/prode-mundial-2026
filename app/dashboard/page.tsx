@@ -440,10 +440,10 @@ export default function Dashboard() {
           if (!lbLoaded) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-green-500" /></div>;
 
           if (isAdmin) {
-            // Admin: one section per group
+            // Admin: groups side by side in a grid
             const gruposParaMostrar = grupos.length > 0 ? grupos : [""];
             return (
-              <div>
+              <div className="grid grid-cols-2 gap-4 items-start">
                 {gruposParaMostrar.map(g => {
                   const lista = lbUsers.filter(u => (getGrupo(u.display_name) ?? "") === g);
                   return <GrupoList key={g || "sin-grupo"} title={g || "Sin grupo"} lista={lista} />;

@@ -120,14 +120,16 @@ export default function Leaderboard() {
         {users.length === 0 ? (
           <p className="text-gray-400 text-center py-12">Aún no hay participantes.</p>
         ) : (
-          grupos.map(g => (
-            <GrupoSection
-              key={g}
-              title={g}
-              lista={users.filter(u => (getGrupo(u.display_name) ?? "Sin grupo") === g)}
-              currentUid={user?.uid}
-            />
-          ))
+          <div className="grid grid-cols-2 gap-6 items-start">
+            {grupos.map(g => (
+              <GrupoSection
+                key={g}
+                title={g}
+                lista={users.filter(u => (getGrupo(u.display_name) ?? "Sin grupo") === g)}
+                currentUid={user?.uid}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
