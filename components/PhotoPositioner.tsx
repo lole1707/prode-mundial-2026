@@ -197,17 +197,12 @@ export default function PhotoPositioner({ photoSrc, onConfirm, onCancel }: Props
                 pointerEvents: "all",
                 cursor: "grab",
                 zIndex: 2,
-                mixBlendMode: "lighten" as const, // dark silhouette → photo shows; bright teal → card wins
               }}
             />
           )}
 
-          {/* Processed template (? painted black) so lighten blend removes it along with rest of dark silhouette */}
-          {processedTpl ? (
-            <img src={processedTpl} alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ zIndex: 0 }} />
-          ) : (
-            <img src="/card-template.jpg" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ zIndex: 0 }} />
-          )}
+          {/* Raw template as background */}
+          <img src="/card-template.jpg" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" style={{ zIndex: 0 }} />
 
 
           {/* Dashed guide showing silhouette ellipse boundary */}

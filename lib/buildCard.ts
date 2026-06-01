@@ -86,27 +86,27 @@ export async function buildCard(
   canvas.height = CARD_H;
   const ctx = canvas.getContext("2d")!;
 
-  const [photo, processedTplSrc] = await Promise.all([
+  const [photo, rawTpl] = await Promise.all([
     loadImage(photoSrc),
-    getProcessedTemplate(),
+    loadImage("/card-template.jpg"),
   ]);
-  const tpl = await loadImage(processedTplSrc);
 
   const t = transform ?? defaultTransform(photo);
 
-  // Use processed template (? painted black) so lighten blend removes it too
-  const tplSrc = await getProcessedTemplate();
-  const tpl2 = await loadImage(tplSrc);
+  // 1. Draw raw template as background
+  ctx.drawImage(rawTpl, 0, 0, CARD_W, CARD_H);
 
-  // 1. Draw processed template first
-  ctx.drawImage(tpl2, 0, 0, CARD_W, CARD_H);
-
-  // 2. Draw photo with lighten blend:
-  //    - Dark areas (black silhouette) = max(0, photo) = photo → photo shows through
-  //    - Bright areas (teal, logos) = max(bright, photo) = stays bright → card design wins
-  ctx.globalCompositeOperation = "lighten";
+  // 2. Draw photo ON TOP clipped to the silhouette ellipse
+  const cx = CARD_W * SIL_CX;
+  const cy = CARD_H * SIL_CY;
+  const rx = CARD_W * SIL_RX;
+  const ry = CARD_H * SIL_RY;
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.clip();
   ctx.drawImage(photo, t.x, t.y, t.w, t.h);
-  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
 
   // 4. Info band overlay + text
   const bandY = CARD_H * INFO_Y;
