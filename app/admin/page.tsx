@@ -433,7 +433,7 @@ export default function AdminPage() {
                 return (
                   <div key={match.id} className={`bg-gray-900 border rounded-xl p-4 ${match.finished ? "border-green-900" : "border-gray-800"}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-gray-500">{match.stage === "group" && `Grupo ${match.group} · `}{new Date(match.datetime).toLocaleDateString("es-AR", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</span>
+                      <span className="text-xs text-gray-500">{match.stage === "group" && `Grupo ${match.group} · `}{new Date(match.datetime).toLocaleDateString("es-AR", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", timeZone:"America/Argentina/Buenos_Aires" })}</span>
                       {match.finished && <span className="text-xs text-green-500 font-semibold">Finalizado</span>}
                     </div>
                     <div className="flex items-center gap-4">

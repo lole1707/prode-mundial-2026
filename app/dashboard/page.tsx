@@ -289,7 +289,7 @@ export default function Dashboard() {
             {visibleMatches.map(m => (
               <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${m.finished ? "border-gray-700" : "border-gray-800"}`}>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-gray-500">{stage === "group" ? `Grupo ${m.group} · ` : ""}{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</span>
+                  <span className="text-xs text-gray-500">{stage === "group" ? `Grupo ${m.group} · ` : ""}{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", timeZone:"America/Argentina/Buenos_Aires" })}</span>
                   {m.finished ? <span className="text-xs text-green-500 font-semibold">Finalizado</span> : <span className="text-xs text-gray-500">{m.venue}</span>}
                 </div>
                 <div className="flex items-center gap-3">
@@ -329,7 +329,7 @@ export default function Dashboard() {
               return (
                 <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${isFinished ? "border-gray-700" : "border-gray-800"}`}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs text-gray-500">{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })}</span>
+                    <span className="text-xs text-gray-500">{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", timeZone:"America/Argentina/Buenos_Aires" })}</span>
                     {isFinished && pred && (
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pts! > 0 ? "bg-green-900/50 text-green-400" : "bg-gray-800 text-gray-500"}`}>{pts} pts</span>
                     )}
