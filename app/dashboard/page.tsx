@@ -492,7 +492,7 @@ export default function Dashboard() {
               {/* Profile card */}
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex items-center gap-5">
                 {photo
-                  ? <img src={photo} alt={apodo} className="w-20 h-20 rounded-full object-cover border-2 border-green-600 flex-shrink-0" />
+                  ? <img src={photo} alt={apodo} className="w-24 h-[134px] rounded-xl object-cover border-2 border-green-600 flex-shrink-0" />
                   : <div className="w-20 h-20 rounded-full bg-gray-700 border-2 border-green-600 flex items-center justify-center text-3xl font-bold text-gray-300 flex-shrink-0">{apodo[0]?.toUpperCase() ?? "?"}</div>
                 }
                 <div className="min-w-0 flex-1">

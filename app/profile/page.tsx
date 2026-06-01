@@ -136,7 +136,7 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center gap-2 mb-2">
             <button type="button" onClick={() => fileRef.current?.click()} className="relative group">
               {displaySrc ? (
-                <div className={`relative overflow-hidden border-2 border-green-600 shadow-lg transition-all duration-300 ${isCard ? "w-44 h-60 rounded-xl" : "w-28 h-28 rounded-full"}`}>
+                <div className={`relative overflow-hidden border-2 border-green-600 shadow-lg transition-all duration-300 ${isCard ? "w-64 h-[358px] rounded-xl" : "w-28 h-28 rounded-full"}`}>
                   <img src={displaySrc} alt="preview" className="w-full h-full object-cover" />
                   {compositing && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-green-400" /></div>}
                   <div className="absolute bottom-1 right-1 w-7 h-7 bg-green-600 rounded-full flex items-center justify-center text-white text-xs shadow opacity-0 group-hover:opacity-100 transition-opacity">✎</div>
