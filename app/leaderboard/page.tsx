@@ -119,7 +119,7 @@ export default function Leaderboard() {
         {users.length === 0 ? (
           <p className="text-gray-400 text-center py-12">Aún no hay participantes.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-6 items-start">
+          <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(${Math.min(grupos.length, 4)}, minmax(0, 1fr))` }}>
             {grupos.map(g => (
               <GrupoSection
                 key={g}

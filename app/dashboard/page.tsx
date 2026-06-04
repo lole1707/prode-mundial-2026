@@ -444,7 +444,7 @@ export default function Dashboard() {
             // Admin: groups side by side in a grid
             const gruposParaMostrar = grupos.length > 0 ? grupos : [""];
             return (
-              <div className="grid grid-cols-2 gap-4 items-start">
+              <div className="grid gap-4 items-start" style={{ gridTemplateColumns: `repeat(${Math.min(gruposParaMostrar.length, 4)}, minmax(0, 1fr))` }}>
                 {gruposParaMostrar.map(g => {
                   const lista = lbUsers.filter(u => getGrupos(u.display_name).includes(g));
                   return <GrupoList key={g || "sin-grupo"} title={g || "Sin grupo"} lista={lista} />;
