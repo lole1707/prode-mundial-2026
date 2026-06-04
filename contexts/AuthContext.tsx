@@ -26,7 +26,7 @@ function parseDisplayName(raw: string): { displayName: string; profileCompleted:
   try {
     const p = JSON.parse(raw);
     // Completed profile
-    if (p.nombre && p.apellido && p.apodo && p.edad) {
+    if (p.nombre && p.apellido && p.apodo && p.edad && !p._name) {
       return { displayName: p.apodo, profileCompleted: true, photo: p.photo, grupo: p.grupo };
     }
     // Pre-profile: { grupo, _name }
