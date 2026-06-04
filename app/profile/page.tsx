@@ -73,14 +73,16 @@ export default function ProfilePage() {
     try {
       let photoUrl: string | undefined;
       if (photoPreview) {
-        let uploadBlob: Blob;
+        let uploadBlob: Blob | null = null;
         try { uploadBlob = await buildCard(photoPreview, apellido, nombre, edad, altura, sector, photoTransform); }
-        catch { uploadBlob = photoFile!; }
-        const fd = new FormData();
-        fd.append("file", new File([uploadBlob], "avatar.jpg", { type: "image/jpeg" }));
-        fd.append("uid", user.uid);
-        const up = await fetch("/api/profile/avatar", { method: "POST", body: fd });
-        if (up.ok) { const { url } = await up.json(); photoUrl = url; }
+        catch { uploadBlob = photoFile ?? null; }
+        if (uploadBlob) {
+          const fd = new FormData();
+          fd.append("file", new File([uploadBlob], "avatar.jpg", { type: "image/jpeg" }));
+          fd.append("uid", user.uid);
+          const up = await fetch("/api/profile/avatar", { method: "POST", body: fd });
+          if (up.ok) { const { url } = await up.json(); photoUrl = url; }
+        }
       }
       const res = await fetch("/api/profile", {
         method: "POST",

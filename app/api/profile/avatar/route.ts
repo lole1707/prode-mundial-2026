@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
   const uid = formData.get("uid") as string | null;
-  if (!file || !uid) return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+  if (!file || !uid) return NextResponse.json({ error: `Faltan: ${!uid ? "uid" : "file"}` }, { status: 400 });
 
   await ensureBucket();
 

@@ -28,9 +28,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const { uid, nombre, apellido, apodo, edad, altura, sector, photo, newPassword, grupo } = await req.json();
-  // sector is only required for Prowork group — other groups don't have it
-  if (!uid || !nombre || !apellido || !apodo || !edad) {
-    return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+  const missing = [
+    !uid && "uid",
+    !nombre && "nombre",
+    !apellido && "apellido",
+    !apodo && "apodo",
+    !edad && "edad",
+  ].filter(Boolean);
+  if (missing.length > 0) {
+    return NextResponse.json({ error: `Faltan: ${missing.join(", ")}` }, { status: 400 });
   }
 
   // Update password if provided
