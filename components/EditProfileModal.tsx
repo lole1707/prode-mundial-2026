@@ -184,17 +184,6 @@ export default function EditProfileModal({ current, onClose, onSaved }: Props) {
             <input type="text" value={altura} onChange={e => setAltura(e.target.value)} placeholder="Altura (ej: 1.74)" className={INPUT} />
           </div>
 
-          <div>
-            <p className="text-sm text-gray-400 mb-2">Sector <span className="text-gray-600 text-xs">(opcional)</span></p>
-            <div className="grid grid-cols-2 gap-3">
-              {(["Administración", "Taller"] as const).map(s => (
-                <button key={s} type="button" onClick={() => setSector(sector === s ? "" : s)}
-                  className={`py-3 rounded-xl font-semibold text-sm border-2 transition-all ${sector === s ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500"}`}>
-                  {s === "Administración" ? "🏢 Administración" : "🔧 Taller"}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Optional password change */}
           <div className="border-t border-gray-800 pt-4">
