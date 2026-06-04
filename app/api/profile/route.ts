@@ -28,15 +28,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const { uid, nombre, apellido, apodo, edad, altura, sector, photo, newPassword, grupo } = await req.json();
-  const missing = [
-    !uid && "uid",
-    !nombre && "nombre",
-    !apellido && "apellido",
-    !apodo && "apodo",
-    !edad && "edad",
-  ].filter(Boolean);
-  if (missing.length > 0) {
-    return NextResponse.json({ error: `Faltan: ${missing.join(", ")}` }, { status: 400 });
+  if (!uid) {
+    return NextResponse.json({ error: "Falta uid" }, { status: 400 });
   }
 
   // Update password if provided
