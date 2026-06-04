@@ -256,7 +256,7 @@ export default function Dashboard() {
     <div className="min-h-screen pb-20">
       <Navbar />
 
-      <div className="max-w-2xl mx-auto px-4 py-5">
+      <div className={`mx-auto px-4 py-5 ${(isAdmin && tab === "posiciones") ? "max-w-6xl" : "max-w-2xl"}`}>
 
         {/* Stage + Group selectors */}
         {tab !== "posiciones" && (
