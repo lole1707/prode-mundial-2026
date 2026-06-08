@@ -14,7 +14,9 @@ import FlagImg from "@/components/FlagImg";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
-type Tab = "fixture" | "users" | "grupos" | "scoring" | "monitor";
+type Tab = "fixture" | "users" | "grupos" | "scoring" | "monitor" | "pronosticos";
+
+interface DBPrediction { user_id: string; match_id: string; home_score: number; away_score: number; }
 
 interface MonitorData {
   tables: { users: number; matches: number; predictions: number };
@@ -64,6 +66,10 @@ export default function AdminPage() {
   const [simMsg, setSimMsg] = useState("");
   const [monitor, setMonitor] = useState<MonitorData | null>(null);
   const [monitorLoading, setMonitorLoading] = useState(false);
+  const [allPredictions, setAllPredictions] = useState<DBPrediction[]>([]);
+  const [predictionsLoaded, setPredictionsLoaded] = useState(false);
+  const [predStage, setPredStage] = useState("group");
+  const [predGroup, setPredGroup] = useState<string>("");
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) router.push("/dashboard");
@@ -365,16 +371,19 @@ export default function AdminPage() {
       <div className="max-w-3xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold mb-6">Panel de Admin</h1>
         <div className="flex flex-wrap gap-2 mb-6 bg-gray-800 p-1 rounded-xl w-fit">
-          {(["fixture","users","grupos","scoring","monitor"] as Tab[]).map(t => (
+          {(["fixture","users","grupos","scoring","pronosticos","monitor"] as Tab[]).map(t => (
             <button key={t} onClick={() => {
               setTab(t);
               if (t === "monitor" && !monitor) {
                 setMonitorLoading(true);
                 fetch("/api/admin/monitor").then(r => r.json()).then(d => { setMonitor(d); setMonitorLoading(false); });
               }
+              if (t === "pronosticos" && !predictionsLoaded) {
+                fetch("/api/admin/predictions").then(r => r.json()).then((d: DBPrediction[]) => { setAllPredictions(d ?? []); setPredictionsLoaded(true); });
+              }
             }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-green-600 text-white" : "text-gray-400 hover:text-white"}`}>
-              {t === "fixture" ? "Fixture" : t === "users" ? "Usuarios" : t === "grupos" ? "Grupos" : t === "scoring" ? "Puntajes" : "📊 Monitor"}
+              {t === "fixture" ? "Fixture" : t === "users" ? "Usuarios" : t === "grupos" ? "Grupos" : t === "scoring" ? "Puntajes" : t === "pronosticos" ? "Pronósticos" : "📊 Monitor"}
             </button>
           ))}
         </div>
@@ -629,6 +638,81 @@ export default function AdminPage() {
             </div>
           </>
         )}
+
+        {tab === "pronosticos" && (() => {
+          const stageMatches = matches.filter(m => m.stage === predStage).sort((a, b) => a.matchNumber - b.matchNumber);
+          const groupsInStage = predStage === "group"
+            ? Array.from(new Set(stageMatches.map(m => m.group).filter((g): g is string => !!g))).sort()
+            : [];
+          const visibleMatches = predGroup ? stageMatches.filter(m => m.group === predGroup) : stageMatches;
+          const predMap: Record<string, Record<string, { home: number; away: number }>> = {};
+          allPredictions.forEach(p => {
+            (predMap[p.user_id] ??= {})[p.match_id] = { home: p.home_score, away: p.away_score };
+          });
+          return (
+            <div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {stages.map(s => (
+                  <button key={s.key} onClick={() => { setPredStage(s.key); setPredGroup(""); }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${predStage === s.key ? "bg-green-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {groupsInStage.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {["Todos", ...groupsInStage].map(g => (
+                    <button key={g} onClick={() => setPredGroup(g === "Todos" ? "" : g)}
+                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${(g === "Todos" && !predGroup) || predGroup === g ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!predictionsLoaded ? (
+                <p className="text-sm text-gray-500">Cargando pronósticos...</p>
+              ) : visibleMatches.length === 0 ? (
+                <p className="text-sm text-gray-500">No hay partidos en esta fase.</p>
+              ) : (
+                <div className="overflow-x-auto border border-gray-800 rounded-xl">
+                  <table className="border-collapse text-sm">
+                    <thead>
+                      <tr>
+                        <th className="sticky left-0 z-10 bg-gray-900 border-b border-r border-gray-800 px-3 py-2 text-left whitespace-nowrap">Usuario</th>
+                        {visibleMatches.map(m => (
+                          <th key={m.id} className="border-b border-gray-800 px-2 py-2 text-center whitespace-nowrap font-normal min-w-[84px]">
+                            <div className="flex items-center justify-center gap-1">
+                              <FlagImg flag={m.homeFlag} size={16} /><FlagImg flag={m.awayFlag} size={16} />
+                            </div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">#{m.matchNumber}</div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((u, i) => {
+                        const name = getDisplayName(u.display_name);
+                        return (
+                          <tr key={u.uid} className={i % 2 === 0 ? "bg-gray-900/40" : "bg-gray-900/10"}>
+                            <td className="sticky left-0 z-10 bg-gray-900 border-r border-gray-800 px-3 py-2 whitespace-nowrap font-medium">{name}</td>
+                            {visibleMatches.map(m => {
+                              const p = predMap[u.uid]?.[m.id];
+                              return (
+                                <td key={m.id} className="px-2 py-2 text-center text-gray-300">
+                                  {p ? `${p.home}-${p.away}` : <span className="text-gray-700">—</span>}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {tab === "monitor" && (
           <div className="space-y-4">
