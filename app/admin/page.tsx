@@ -378,7 +378,7 @@ export default function AdminPage() {
                 setMonitorLoading(true);
                 fetch("/api/admin/monitor").then(r => r.json()).then(d => { setMonitor(d); setMonitorLoading(false); });
               }
-              if (t === "pronosticos" && !predictionsLoaded) {
+              if (t === "pronosticos") {
                 fetch("/api/admin/predictions").then(r => r.json()).then((d: DBPrediction[]) => { setAllPredictions(d ?? []); setPredictionsLoaded(true); });
               }
             }}
