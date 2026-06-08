@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ADMIN_UID = process.env.NEXT_PUBLIC_ADMIN_UID!;
@@ -11,8 +9,6 @@ function h(extra?: Record<string, string>) {
     "apikey": SERVICE_KEY,
     "Authorization": `Bearer ${SERVICE_KEY}`,
     "Content-Type": "application/json",
-    "Cache-Control": "no-store, no-cache, must-revalidate",
-    "Pragma": "no-cache",
     ...extra,
   };
 }
@@ -21,7 +17,7 @@ export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) return NextResponse.json([], { status: 200 });
   const res = await fetch(`${DB_URL}/rest/v1/predictions?user_id=eq.${userId}`, {
-    headers: h(), cache: "no-store",
+    headers: h(), next: { revalidate: 15 },
   });
   if (!res.ok) return NextResponse.json({ error: await res.text() }, { status: res.status });
   return NextResponse.json(await res.json());

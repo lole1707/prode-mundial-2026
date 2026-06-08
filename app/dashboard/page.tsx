@@ -137,7 +137,7 @@ export default function Dashboard() {
     load();
   }, [user]);
 
-  // Real-time updates: Supabase Realtime + polling every 30s + on tab focus
+  // Real-time updates: Supabase Realtime push + refresh on tab focus (no polling)
   useEffect(() => {
     if (!user) return;
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -156,14 +156,12 @@ export default function Dashboard() {
         .subscribe();
     }).catch(() => {});
 
-    // Fallback: poll every 30s + refresh on tab focus
-    const interval = setInterval(() => refreshMatches(), 30_000);
+    // Refresh when the tab regains focus (covers cases where Realtime missed an update while hidden)
     const onVisible = () => { if (document.visibilityState === "visible") refreshMatches(); };
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       channel?.unsubscribe?.();
-      clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

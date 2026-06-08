@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
@@ -15,7 +13,7 @@ function h() {
 export async function GET() {
   const res = await fetch(
     `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&uid=neq.__groups_config__&order=total_points.desc`,
-    { headers: h(), cache: "no-store" }
+    { headers: h(), next: { revalidate: 20 } }
   );
   if (!res.ok) return NextResponse.json([], { status: res.status });
   const data = await res.json();

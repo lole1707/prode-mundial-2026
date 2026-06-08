@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
-
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 export const CONFIG_UID = "__scoring_config__";
@@ -20,7 +18,7 @@ function h(extra?: Record<string, string>) {
 export async function GET() {
   const res = await fetch(
     `${DB_URL}/rest/v1/users?uid=eq.${CONFIG_UID}&select=display_name`,
-    { headers: h(), cache: "no-store" }
+    { headers: h(), next: { revalidate: 60 } }
   );
   if (res.ok) {
     const rows = await res.json() as { display_name: string }[];
