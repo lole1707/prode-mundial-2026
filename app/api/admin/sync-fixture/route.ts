@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { calculatePoints, ScoringConfig } from "@/lib/scoring";
 import { CONFIG_UID, DEFAULTS } from "@/app/api/config/route";
 
@@ -152,6 +153,14 @@ export async function POST(req: NextRequest) {
       const homeName = NAMES[home.name] ?? home.name ?? "TBD";
       const awayName = NAMES[away.name] ?? away.name ?? "TBD";
       const finished = m.status === "FINISHED";
+      const inPlay = m.status === "IN_PLAY" || m.status === "PAUSED";
+      // Show fullTime score if finished, halftime score if paused at break
+      const home_score = finished
+        ? (score.fullTime?.home ?? null)
+        : (inPlay ? (score.halfTime?.home ?? null) : null);
+      const away_score = finished
+        ? (score.fullTime?.away ?? null)
+        : (inPlay ? (score.halfTime?.away ?? null) : null);
       return {
         id: String(m.id),
         home_team: homeName,
@@ -163,8 +172,8 @@ export async function POST(req: NextRequest) {
         match_number: matchNumber++,
         datetime: m.utcDate as string,
         venue: (m.venue as string) ?? null,
-        home_score: finished ? (score.fullTime?.home ?? null) : null,
-        away_score: finished ? (score.fullTime?.away ?? null) : null,
+        home_score,
+        away_score,
         finished,
       };
     });
@@ -229,6 +238,9 @@ export async function POST(req: NextRequest) {
         });
       }
     }
+
+    // Bust the Next.js data cache so /api/matches returns fresh data immediately
+    revalidateTag("matches");
 
     const finished = rows.filter((r: typeof rows[0]) => r.finished).length;
     return NextResponse.json({ synced: rows.length, finished });

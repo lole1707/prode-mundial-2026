@@ -48,6 +48,7 @@ export default function AdminPage() {
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newGrupo, setNewGrupo] = useState("");
+  const [filterGrupo, setFilterGrupo] = useState("");
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState("");
   const [scoring, setScoring] = useState<ScoringConfig>(DEFAULTS);
@@ -414,17 +415,17 @@ export default function AdminPage() {
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className="text-xs text-gray-500 self-center">Filtrar:</span>
                   {["Todos", ...grupos].map(g => (
-                    <button key={g} onClick={() => setNewGrupo(g === "Todos" ? "" : g)}
-                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${(g === "Todos" && !newGrupo) || newGrupo === g ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}>
+                    <button key={g} onClick={() => setFilterGrupo(g === "Todos" ? "" : g)}
+                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${(g === "Todos" && !filterGrupo) || filterGrupo === g ? "bg-green-600 border-green-500 text-white" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}>
                       {g}
                     </button>
                   ))}
                 </div>
               ) : null;
             })()}
-            <h2 className="text-lg font-semibold mb-3">Participantes ({users.filter(u => !newGrupo || getGrupos(u.display_name).includes(newGrupo) || (getGrupos(u.display_name).length === 0 && newGrupo === "Sin grupo")).length})</h2>
+            <h2 className="text-lg font-semibold mb-3">Participantes ({users.filter(u => !filterGrupo || getGrupos(u.display_name).includes(filterGrupo) || (getGrupos(u.display_name).length === 0 && filterGrupo === "Sin grupo")).length})</h2>
             <div className="space-y-2">
-              {users.filter(u => !newGrupo || getGrupos(u.display_name).includes(newGrupo) || (getGrupos(u.display_name).length === 0 && newGrupo === "Sin grupo")).map(u => {
+              {users.filter(u => !filterGrupo || getGrupos(u.display_name).includes(filterGrupo) || (getGrupos(u.display_name).length === 0 && filterGrupo === "Sin grupo")).map(u => {
                 const name = getDisplayName(u.display_name);
                 const photo = getPhoto(u.display_name);
                 const grupos = getGrupos(u.display_name);

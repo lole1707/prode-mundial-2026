@@ -9,7 +9,7 @@ export async function GET() {
       "apikey": SERVICE_KEY,
       "Authorization": `Bearer ${SERVICE_KEY}`,
     },
-    next: { revalidate: 20 },
+    next: { revalidate: 20, tags: ["matches"] },
   });
   if (!res.ok) {
     const err = await res.text();
