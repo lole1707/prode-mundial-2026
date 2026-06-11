@@ -55,6 +55,12 @@ export default function Dashboard() {
   const [lbLoaded, setLbLoaded] = useState(false);
   const [lbGrupo, setLbGrupo] = useState<string>("__mi_grupo__");
   const [editingProfile, setEditingProfile] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -242,6 +248,13 @@ export default function Dashboard() {
     setSaving(null);
   }
 
+  function formatCountdown(ms: number): string {
+    const totalSecs = Math.ceil(ms / 1000);
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
   const visibleMatches = stage === "group"
     ? matches.filter(m => m.stage === "group" && m.group === group)
     : matches.filter(m => m.stage === stage);
@@ -319,15 +332,22 @@ export default function Dashboard() {
               const draft = drafts[m.id];
               const isFinished = m.finished && m.homeScore !== null && m.awayScore !== null;
               const cutoff = new Date(new Date(m.datetime).getTime() - 30 * 60 * 1000);
-              const isPast = cutoff < new Date();
+              const msLeft = cutoff.getTime() - now.getTime();
+              const isPast = msLeft <= 0;
               const canPredict = !isPast && !isFinished;
+              const closingSoon = canPredict && msLeft <= 30 * 60 * 1000;
               const pts = isFinished && pred ? calculatePoints(pred.homeScore, pred.awayScore, m.homeScore!, m.awayScore!, scoring) : null;
               const homeVal = draft?.home ?? (pred ? String(pred.homeScore) : "");
               const awayVal = draft?.away ?? (pred ? String(pred.awayScore) : "");
               return (
-                <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${isFinished ? "border-gray-700" : "border-gray-800"}`}>
+                <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${isFinished ? "border-gray-700" : closingSoon ? "border-orange-700" : "border-gray-800"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs text-gray-500">{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", timeZone:"America/Argentina/Buenos_Aires" })}</span>
+                    {closingSoon && (
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-900/50 text-orange-400 border border-orange-700 animate-pulse">
+                        ⏰ Cierra en {formatCountdown(msLeft)}
+                      </span>
+                    )}
                     {isFinished && pred && (
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pts! > 0 ? "bg-green-900/50 text-green-400" : "bg-gray-800 text-gray-500"}`}>{pts} pts</span>
                     )}
