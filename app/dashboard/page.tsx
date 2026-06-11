@@ -11,7 +11,7 @@ import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 import EditProfileModal from "@/components/EditProfileModal";
 
-type MainTab = "resultados" | "pronosticos" | "posiciones" | "miperfil";
+type MainTab = "resultados" | "pronosticos" | "posiciones" | "calendario" | "miperfil";
 
 const STAGES = [
   { key: "group", label: "Grupos" },
@@ -173,9 +173,9 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Re-fetch matches+predictions when switching to resultados, pronosticos or miperfil
+  // Re-fetch matches+predictions when switching to resultados, pronosticos, calendario or miperfil
   useEffect(() => {
-    if (!["resultados", "pronosticos", "miperfil"].includes(tab) || !user) return;
+    if (!["resultados", "pronosticos", "calendario", "miperfil"].includes(tab) || !user) return;
     Promise.all([fetch("/api/matches"), fetch(`/api/predictions?userId=${user.uid}`)]).then(async ([mr, pr]) => {
       if (mr.ok) {
         const data = await mr.json() as Record<string, unknown>[];
@@ -270,7 +270,7 @@ export default function Dashboard() {
       <div className={`mx-auto px-4 py-5 ${(isAdmin && tab === "posiciones") ? "max-w-6xl" : "max-w-2xl"}`}>
 
         {/* Stage + Group selectors */}
-        {tab !== "posiciones" && (
+        {tab !== "posiciones" && tab !== "calendario" && (
           <>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {STAGES.map(s => (
@@ -406,6 +406,80 @@ export default function Dashboard() {
             })}
           </div>
         )}
+
+        {/* CALENDARIO */}
+        {tab === "calendario" && (() => {
+          const sorted = [...matches].sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+          const todayKey = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+
+          // Group by day
+          const dayMap = new Map<string, { label: string; matches: Match[] }>();
+          for (const m of sorted) {
+            const key = new Date(m.datetime).toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+            const label = new Date(m.datetime).toLocaleDateString("es-AR", {
+              weekday: "long", day: "2-digit", month: "long", timeZone: "America/Argentina/Buenos_Aires",
+            });
+            if (!dayMap.has(key)) dayMap.set(key, { label, matches: [] });
+            dayMap.get(key)!.matches.push(m);
+          }
+
+          const STAGE_LABELS: Record<string, string> = {
+            group: "Grupo", round_of_32: "16avos", round_of_16: "Octavos",
+            quarterfinal: "Cuartos", semifinal: "Semis", third_place: "3er Puesto", final: "Final",
+          };
+
+          if (sorted.length === 0) return <p className="text-gray-500 text-center py-12">No hay partidos cargados aún.</p>;
+
+          return (
+            <div className="space-y-6">
+              {Array.from(dayMap.entries()).map(([key, { label, matches: dayMatches }]) => {
+                const isToday = key === todayKey;
+                return (
+                  <div key={key}>
+                    <div className={`flex items-center gap-2 mb-3 px-1`}>
+                      <span className={`text-sm font-bold capitalize ${isToday ? "text-green-400" : "text-gray-300"}`}>{label}</span>
+                      {isToday && <span className="text-xs bg-green-700 text-white px-2 py-0.5 rounded-full font-semibold">Hoy</span>}
+                      <span className="flex-1 h-px bg-gray-800" />
+                      <span className="text-xs text-gray-600">{dayMatches.length} partido{dayMatches.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {dayMatches.map(m => {
+                        const time = new Date(m.datetime).toLocaleTimeString("es-AR", {
+                          hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Argentina/Buenos_Aires",
+                        });
+                        const stageLabel = m.stage === "group"
+                          ? `Grupo ${m.group}`
+                          : (STAGE_LABELS[m.stage] ?? m.stage);
+                        return (
+                          <div key={m.id} className={`bg-gray-900 border rounded-xl px-4 py-3 flex items-center gap-3 ${m.finished ? "border-gray-700 opacity-60" : "border-gray-800"}`}>
+                            <div className="text-center w-12 flex-shrink-0">
+                              <p className="text-sm font-bold text-white tabular-nums">{time}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">{stageLabel}</p>
+                            </div>
+                            <div className="flex-1 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <FlagImg flag={m.homeFlag} size={20} />
+                                <span className="text-sm text-white">{m.homeTeam}</span>
+                              </div>
+                              {m.finished
+                                ? <span className="text-sm font-bold text-gray-300 tabular-nums">{m.homeScore} - {m.awayScore}</span>
+                                : <span className="text-xs text-gray-600 font-bold">vs</span>
+                              }
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm text-white text-right">{m.awayTeam}</span>
+                                <FlagImg flag={m.awayFlag} size={20} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* POSICIONES */}
         {tab === "posiciones" && (() => {
@@ -637,10 +711,11 @@ export default function Dashboard() {
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-800 safe-area-pb">
         <div className="max-w-2xl mx-auto flex">
           {([
-            { key: "resultados",  label: "Resultados",  icon: "⚽" },
-            { key: "pronosticos", label: "Pronósticos",  icon: "📝" },
-            { key: "posiciones",  label: "Posiciones",   icon: "🏆" },
-            { key: "miperfil",    label: "Mi Perfil",    icon: "👤" },
+            { key: "resultados",  label: "Resultados", icon: "⚽" },
+            { key: "pronosticos", label: "Pronósticos", icon: "📝" },
+            { key: "calendario",  label: "Calendario",  icon: "📅" },
+            { key: "posiciones",  label: "Posiciones",  icon: "🏆" },
+            { key: "miperfil",    label: "Mi Perfil",   icon: "👤" },
           ] as { key: MainTab; label: string; icon: string }[]).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${tab === t.key ? "text-green-400" : "text-gray-500 hover:text-gray-300"}`}>
