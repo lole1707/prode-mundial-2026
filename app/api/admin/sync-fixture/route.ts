@@ -154,13 +154,9 @@ export async function POST(req: NextRequest) {
       const awayName = NAMES[away.name] ?? away.name ?? "TBD";
       const finished = m.status === "FINISHED";
       const inPlay = m.status === "IN_PLAY" || m.status === "PAUSED";
-      // Show fullTime score if finished, halftime score if paused at break
-      const home_score = finished
-        ? (score.fullTime?.home ?? null)
-        : (inPlay ? (score.halfTime?.home ?? null) : null);
-      const away_score = finished
-        ? (score.fullTime?.away ?? null)
-        : (inPlay ? (score.halfTime?.away ?? null) : null);
+      // fullTime contains the live/final score during both IN_PLAY and FINISHED
+      const home_score = (finished || inPlay) ? (score.fullTime?.home ?? null) : null;
+      const away_score = (finished || inPlay) ? (score.fullTime?.away ?? null) : null;
       return {
         id: String(m.id),
         home_team: homeName,

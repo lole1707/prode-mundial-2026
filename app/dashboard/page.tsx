@@ -297,11 +297,17 @@ export default function Dashboard() {
         {tab === "resultados" && (
           <div className="space-y-3">
             {visibleMatches.length === 0 && <p className="text-gray-500 text-center py-8">No hay partidos en esta etapa.</p>}
-            {visibleMatches.map(m => (
-              <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${m.finished ? "border-gray-700" : "border-gray-800"}`}>
+            {visibleMatches.map(m => {
+              const isLive = !m.finished && m.homeScore !== null && m.awayScore !== null;
+              return (
+              <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${m.finished ? "border-gray-700" : isLive ? "border-red-700" : "border-gray-800"}`}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs text-gray-500">{stage === "group" ? `Grupo ${m.group} · ` : ""}{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", hour12: false, timeZone:"America/Argentina/Buenos_Aires" })}</span>
-                  {m.finished ? <span className="text-xs text-green-500 font-semibold">Finalizado</span> : <span className="text-xs text-gray-500">{m.venue}</span>}
+                  {m.finished
+                    ? <span className="text-xs text-green-500 font-semibold">Finalizado</span>
+                    : isLive
+                    ? <span className="text-xs text-red-400 font-semibold animate-pulse">🔴 En vivo</span>
+                    : <span className="text-xs text-gray-500">{m.venue}</span>}
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 flex flex-col items-end gap-1">
@@ -309,8 +315,8 @@ export default function Dashboard() {
                     <p className="text-sm font-semibold text-white text-right">{m.homeTeam}</p>
                   </div>
                   <div className="text-center min-w-[60px]">
-                    {m.finished
-                      ? <div className="text-2xl font-bold text-white">{m.homeScore} - {m.awayScore}</div>
+                    {m.finished || isLive
+                      ? <div className={`text-2xl font-bold ${isLive ? "text-red-300" : "text-white"}`}>{m.homeScore} - {m.awayScore}</div>
                       : <div className="text-sm text-gray-600 font-bold">vs</div>}
                   </div>
                   <div className="flex-1 flex flex-col items-start gap-1">
@@ -319,7 +325,8 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -331,6 +338,7 @@ export default function Dashboard() {
               const pred = predictions[m.id];
               const draft = drafts[m.id];
               const isFinished = m.finished && m.homeScore !== null && m.awayScore !== null;
+              const isLive = !m.finished && m.homeScore !== null && m.awayScore !== null;
               const cutoff = new Date(new Date(m.datetime).getTime() - 30 * 60 * 1000);
               const msLeft = cutoff.getTime() - now.getTime();
               const isPast = msLeft <= 0;
@@ -340,9 +348,10 @@ export default function Dashboard() {
               const homeVal = draft?.home ?? (pred ? String(pred.homeScore) : "");
               const awayVal = draft?.away ?? (pred ? String(pred.awayScore) : "");
               return (
-                <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${isFinished ? "border-gray-700" : closingSoon ? "border-orange-700" : "border-gray-800"}`}>
+                <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${isFinished ? "border-gray-700" : isLive ? "border-red-700" : closingSoon ? "border-orange-700" : "border-gray-800"}`}>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs text-gray-500">{new Date(m.datetime).toLocaleDateString("es-AR", { weekday:"short", day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit", hour12: false, timeZone:"America/Argentina/Buenos_Aires" })}</span>
+                    {isLive && <span className="text-xs text-red-400 font-semibold animate-pulse">🔴 En vivo</span>}
                     {closingSoon && (
                       <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-900/50 text-orange-400 border border-orange-700 animate-pulse">
                         ⏰ Cierra en {formatCountdown(msLeft)}
@@ -362,6 +371,8 @@ export default function Dashboard() {
                     <div className="text-center space-y-1 min-w-[80px]">
                       {isFinished ? (
                         <div className="text-xl font-bold text-white">{m.homeScore} - {m.awayScore}</div>
+                      ) : isLive ? (
+                        <div className="text-xl font-bold text-red-300">{m.homeScore} - {m.awayScore}</div>
                       ) : canPredict ? (
                         <div className="flex items-center gap-1">
                           <input type="number" min={0} max={99} value={homeVal}
