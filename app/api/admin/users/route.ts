@@ -11,11 +11,31 @@ function h() {
 }
 
 export async function GET() {
-  const res = await fetch(
-    `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&uid=neq.__groups_config__&order=total_points.desc`,
-    { headers: h(), next: { revalidate: 20 } }
-  );
-  if (!res.ok) return NextResponse.json([], { status: res.status });
-  const data = await res.json();
-  return NextResponse.json(data ?? []);
+  const [dbRes, authRes] = await Promise.all([
+    fetch(
+      `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&uid=neq.__groups_config__&order=total_points.desc`,
+      { headers: h(), next: { revalidate: 20 } }
+    ),
+    fetch(`${DB_URL}/auth/v1/admin/users?per_page=1000`, {
+      headers: h(),
+      next: { revalidate: 20 },
+    }),
+  ]);
+
+  if (!dbRes.ok) return NextResponse.json([], { status: dbRes.status });
+  const data: { uid: string; display_name: string; total_points: number }[] = await dbRes.json() ?? [];
+
+  // Build uid → username map from auth users
+  const emailMap: Record<string, string> = {};
+  if (authRes.ok) {
+    const authData = await authRes.json();
+    const authUsers: { id: string; email?: string }[] = authData.users ?? authData ?? [];
+    for (const u of authUsers) {
+      if (u.email?.endsWith("@prode.app")) {
+        emailMap[u.id] = u.email.replace("@prode.app", "");
+      }
+    }
+  }
+
+  return NextResponse.json(data.map(u => ({ ...u, username: emailMap[u.uid] ?? null })));
 }

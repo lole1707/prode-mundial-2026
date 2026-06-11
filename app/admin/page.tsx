@@ -25,7 +25,7 @@ interface MonitorData {
   timestamp: string;
 }
 
-interface DBUser { uid: string; display_name: string; total_points: number; }
+interface DBUser { uid: string; display_name: string; total_points: number; username?: string | null; }
 
 function apiHeaders() {
   return { "apikey": SUPABASE_KEY, "Content-Type": "application/json" };
@@ -441,6 +441,9 @@ export default function AdminPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{name}</p>
+                        {u.username && (
+                          <p className="text-xs text-blue-400 font-mono mt-0.5">{u.username}</p>
+                        )}
                         <div className="flex flex-wrap gap-1 mt-0.5">
                           {grupos.map(g => (
                             <span key={g} className="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">{g}</span>
