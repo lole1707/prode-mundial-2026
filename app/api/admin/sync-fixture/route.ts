@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Bust the Next.js data cache so /api/matches returns fresh data immediately
-    revalidateTag("matches");
+    revalidateTag("matches", {});
 
     const finished = rows.filter((r: typeof rows[0]) => r.finished).length;
     return NextResponse.json({ synced: rows.length, finished });
