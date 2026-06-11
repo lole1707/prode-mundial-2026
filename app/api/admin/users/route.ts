@@ -13,8 +13,8 @@ function h() {
 export async function GET() {
   const [dbRes, authRes] = await Promise.all([
     fetch(
-      `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&uid=neq.__groups_config__&order=total_points.desc`,
-      { headers: h(), next: { revalidate: 20 } }
+      `${DB_URL}/rest/v1/users?uid=neq.__scoring_config__&uid=neq.__groups_config__&order=total_points.desc&limit=500`,
+      { headers: h(), next: { revalidate: 20, tags: ["users"] } }
     ),
     fetch(`${DB_URL}/auth/v1/admin/users?per_page=1000`, {
       headers: h(),

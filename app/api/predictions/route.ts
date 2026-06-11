@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -98,6 +99,7 @@ async function recalculateUser(userId: string) {
     headers: h({ "Prefer": "return=minimal" }),
     body: JSON.stringify({ total_points: total }),
   });
+  revalidateTag("users", {});
 }
 
 function calcPoints(

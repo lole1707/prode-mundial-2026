@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,9 @@ export async function POST(req: NextRequest) {
 
   // Recalculate ALL users automatically — no button needed
   await recalculateAll();
+
+  revalidateTag("users", {});
+  revalidateTag("matches", {});
 
   return NextResponse.json({ ok: true });
 }

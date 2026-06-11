@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
     // Recalculate points for all users
     const finishedMatches = rows.filter((m: typeof rows[0]) => m.finished);
     if (finishedMatches.length > 0) {
-      const usersRes = await fetch(`${DB_URL}/rest/v1/users?uid=neq.${CONFIG_UID}&select=uid`, {
+      const usersRes = await fetch(`${DB_URL}/rest/v1/users?uid=neq.${CONFIG_UID}&uid=neq.__groups_config__&select=uid&limit=500`, {
         headers: dbHeaders(),
       });
       const allUsers: { uid: string }[] = usersRes.ok ? await usersRes.json() : [];
@@ -235,8 +235,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Bust the Next.js data cache so /api/matches returns fresh data immediately
+    // Bust caches so leaderboard and matches show fresh data immediately
     revalidateTag("matches", {});
+    revalidateTag("users", {});
 
     const finished = rows.filter((r: typeof rows[0]) => r.finished).length;
     return NextResponse.json({ synced: rows.length, finished });
