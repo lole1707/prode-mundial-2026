@@ -843,11 +843,12 @@ export default function Dashboard() {
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-800 safe-area-pb">
         <div className="max-w-2xl mx-auto flex">
           {([
-            { key: "resultados",  label: "Resultados", icon: "⚽" },
-            { key: "pronosticos", label: "Pronóst.",   icon: "📝" },
-            { key: "migrupo",     label: "Mi Grupo",   icon: "👥" },
-            { key: "posiciones",  label: "Posiciones", icon: "🏆" },
-            { key: "miperfil",    label: "Perfil",     icon: "👤" },
+            { key: "resultados",  label: "Result.",   icon: "⚽" },
+            { key: "pronosticos", label: "Pronóst.",  icon: "📝" },
+            { key: "migrupo",     label: "Mi Grupo",  icon: "👥" },
+            { key: "calendario",  label: "Agenda",    icon: "📅" },
+            { key: "posiciones",  label: "Tabla",     icon: "🏆" },
+            { key: "miperfil",    label: "Perfil",    icon: "👤" },
           ] as { key: MainTab; label: string; icon: string }[]).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${tab === t.key ? "text-green-400" : "text-gray-500 hover:text-gray-300"}`}>
