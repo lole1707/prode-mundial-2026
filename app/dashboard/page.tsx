@@ -11,7 +11,7 @@ import Navbar from "@/components/Navbar";
 import FlagImg from "@/components/FlagImg";
 import EditProfileModal from "@/components/EditProfileModal";
 
-type MainTab = "resultados" | "pronosticos" | "posiciones" | "calendario" | "miperfil";
+type MainTab = "resultados" | "pronosticos" | "migrupo" | "posiciones" | "calendario" | "miperfil";
 
 const STAGES = [
   { key: "group", label: "Grupos" },
@@ -53,6 +53,8 @@ export default function Dashboard() {
 
   const [lbUsers, setLbUsers] = useState<LeaderboardUser[]>([]);
   const [lbLoaded, setLbLoaded] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<LeaderboardUser[]>([]);
+  const [groupPreds, setGroupPreds] = useState<{ user_id: string; match_id: string; home_score: number; away_score: number }[]>([]);
   const [lbGrupo, setLbGrupo] = useState<string>("__mi_grupo__");
   const [editingProfile, setEditingProfile] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -173,6 +175,15 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Fetch group predictions when switching to migrupo
+  useEffect(() => {
+    if (tab !== "migrupo" || !user) return;
+    fetch(`/api/group-predictions?userId=${user.uid}`)
+      .then(r => r.json())
+      .then(d => { setGroupMembers(d.members ?? []); setGroupPreds(d.predictions ?? []); })
+      .catch(() => {});
+  }, [tab, user]);
+
   // Re-fetch matches+predictions when switching to resultados, pronosticos, calendario or miperfil
   useEffect(() => {
     if (!["resultados", "pronosticos", "calendario", "miperfil"].includes(tab) || !user) return;
@@ -270,7 +281,7 @@ export default function Dashboard() {
       <div className={`mx-auto px-4 py-5 ${(isAdmin && tab === "posiciones") ? "max-w-6xl" : "max-w-2xl"}`}>
 
         {/* Stage + Group selectors */}
-        {tab !== "posiciones" && tab !== "calendario" && (
+        {tab !== "posiciones" && tab !== "calendario" && tab !== "migrupo" && (
           <>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {STAGES.map(s => (
@@ -417,6 +428,116 @@ export default function Dashboard() {
             })}
           </div>
         )}
+
+        {/* MI GRUPO */}
+        {tab === "migrupo" && (() => {
+          const myGrupos = getGrupos(lbUsers.find(u => u.uid === user?.uid)?.display_name ?? "");
+
+          if (myGrupos.length === 0) return (
+            <div className="text-center py-16">
+              <p className="text-2xl mb-3">👥</p>
+              <p className="text-gray-400 font-semibold">No pertenecés a ningún grupo</p>
+              <p className="text-xs text-gray-600 mt-2">El admin te tiene que asignar a un grupo.</p>
+            </div>
+          );
+
+          // Only matches where cutoff already passed (predictions closed)
+          const closedMatches = [...matches]
+            .filter(m => {
+              const cutoff = new Date(new Date(m.datetime).getTime() - 30 * 60 * 1000);
+              return cutoff < now;
+            })
+            .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime()); // most recent first
+
+          if (closedMatches.length === 0) return (
+            <div className="text-center py-16">
+              <p className="text-2xl mb-3">🔒</p>
+              <p className="text-gray-400 font-semibold">Todavía no cerró ningún pronóstico</p>
+              <p className="text-xs text-gray-600 mt-2">Los pronósticos del grupo se revelan 30 minutos antes de cada partido.</p>
+            </div>
+          );
+
+          // Build prediction map: userId → matchId → {home, away}
+          const predMap: Record<string, Record<string, { home: number; away: number }>> = {};
+          groupPreds.forEach(p => {
+            (predMap[p.user_id] ??= {})[p.match_id] = { home: p.home_score, away: p.away_score };
+          });
+
+          const STAGE_LABELS: Record<string, string> = {
+            group: "Grupo", round_of_32: "16avos", round_of_16: "Octavos",
+            quarterfinal: "Cuartos", semifinal: "Semis", third_place: "3er Puesto", final: "Final",
+          };
+
+          return (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500 px-1">Pronósticos de tu grupo · {myGrupos.join(", ")}</p>
+              {closedMatches.map(m => {
+                const isFinished = m.finished && m.homeScore !== null && m.awayScore !== null;
+                const isLive = !m.finished && m.homeScore !== null && m.awayScore !== null;
+                const stageLabel = m.stage === "group" ? `Grupo ${m.group}` : (STAGE_LABELS[m.stage] ?? m.stage);
+                const time = new Date(m.datetime).toLocaleDateString("es-AR", {
+                  weekday: "short", day: "2-digit", month: "short",
+                  hour: "2-digit", minute: "2-digit", hour12: false,
+                  timeZone: "America/Argentina/Buenos_Aires",
+                });
+                return (
+                  <div key={m.id} className={`bg-gray-900 border rounded-xl p-4 ${isFinished ? "border-gray-700" : isLive ? "border-red-700" : "border-gray-800"}`}>
+                    {/* Match header */}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-500">{stageLabel} · {time}</span>
+                      {isFinished && <span className="text-xs text-green-500 font-semibold">Finalizado</span>}
+                      {isLive && <span className="text-xs text-red-400 font-semibold animate-pulse">🔴 En vivo</span>}
+                    </div>
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <div className="flex items-center gap-1.5">
+                        <FlagImg flag={m.homeFlag} size={22} />
+                        <span className="text-sm font-semibold">{m.homeTeam}</span>
+                      </div>
+                      {(isFinished || isLive)
+                        ? <span className={`text-lg font-bold tabular-nums ${isLive ? "text-red-300" : "text-white"}`}>{m.homeScore} - {m.awayScore}</span>
+                        : <span className="text-xs text-gray-600 font-bold">vs</span>
+                      }
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold">{m.awayTeam}</span>
+                        <FlagImg flag={m.awayFlag} size={22} />
+                      </div>
+                    </div>
+                    {/* Group members predictions */}
+                    <div className="space-y-1.5">
+                      {groupMembers.map(u => {
+                        const name = getDisplayName(u.display_name);
+                        const photo = getPhoto(u.display_name);
+                        const p = predMap[u.uid]?.[m.id];
+                        const isMe = u.uid === user?.uid;
+                        const pts = isFinished && p
+                          ? calculatePoints(p.home, p.away, m.homeScore!, m.awayScore!, scoring)
+                          : null;
+                        return (
+                          <div key={u.uid} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isMe ? "bg-green-900/20 border border-green-800/40" : "bg-gray-800/50"}`}>
+                            {photo
+                              ? <img src={photo} alt={name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                              : <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0">{name[0]?.toUpperCase()}</div>
+                            }
+                            <span className="flex-1 text-sm font-medium truncate">{name}{isMe && <span className="text-xs text-green-400 ml-1">(vos)</span>}</span>
+                            {p
+                              ? <span className="text-sm font-bold tabular-nums">{p.home} - {p.away}</span>
+                              : <span className="text-xs text-gray-600">—</span>
+                            }
+                            {pts !== null && (
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ml-1 ${pts > 0 ? "bg-green-900/50 text-green-400" : "bg-gray-700 text-gray-500"}`}>
+                                {pts}pts
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* CALENDARIO */}
         {tab === "calendario" && (() => {
@@ -723,10 +844,10 @@ export default function Dashboard() {
         <div className="max-w-2xl mx-auto flex">
           {([
             { key: "resultados",  label: "Resultados", icon: "⚽" },
-            { key: "pronosticos", label: "Pronósticos", icon: "📝" },
-            { key: "calendario",  label: "Calendario",  icon: "📅" },
-            { key: "posiciones",  label: "Posiciones",  icon: "🏆" },
-            { key: "miperfil",    label: "Mi Perfil",   icon: "👤" },
+            { key: "pronosticos", label: "Pronóst.",   icon: "📝" },
+            { key: "migrupo",     label: "Mi Grupo",   icon: "👥" },
+            { key: "posiciones",  label: "Posiciones", icon: "🏆" },
+            { key: "miperfil",    label: "Perfil",     icon: "👤" },
           ] as { key: MainTab; label: string; icon: string }[]).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${tab === t.key ? "text-green-400" : "text-gray-500 hover:text-gray-300"}`}>
