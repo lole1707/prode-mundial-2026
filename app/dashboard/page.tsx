@@ -371,8 +371,8 @@ export default function Dashboard() {
                     {isFinished && pred && (
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pts! > 0 ? "bg-green-900/50 text-green-400" : "bg-gray-800 text-gray-500"}`}>{pts} pts</span>
                     )}
-                    {isPast && !isFinished && !pred && <span className="text-xs text-red-500">Cerrado sin pronóstico</span>}
-                    {isPast && !isFinished && pred && <span className="text-xs text-gray-500">Cerrado</span>}
+                    {isPast && !isFinished && !isLive && !pred && <span className="text-xs text-red-500">Cerrado sin pronóstico</span>}
+                    {isPast && !isFinished && !isLive && pred && <span className="text-xs text-gray-500">Cerrado</span>}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 flex flex-col items-end gap-1">
@@ -399,7 +399,7 @@ export default function Dashboard() {
                           ? <div className="text-sm text-gray-400 font-semibold">{pred.homeScore} - {pred.awayScore}</div>
                           : <div className="text-xs text-gray-600">—</div>
                       )}
-                      {isFinished && pred && <div className="text-xs text-gray-500">Pronóstico: {pred.homeScore}-{pred.awayScore}</div>}
+                      {(isFinished || isLive) && pred && <div className="text-xs text-gray-500">Tu pronóst.: {pred.homeScore}-{pred.awayScore}</div>}
                     </div>
                     <div className="flex-1 flex flex-col items-start gap-1">
                       <FlagImg flag={m.awayFlag} size={28} />
