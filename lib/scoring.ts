@@ -14,6 +14,9 @@ export function calculatePoints(
   realAway: number,
   config: ScoringConfig = SCORING
 ): number {
+  // Guard: null/undefined prediction means no prediction was made — no points
+  if (predHome == null || predAway == null || realHome == null || realAway == null) return 0;
+
   // Exact score (includes exact draw like 1-1 vs 1-1)
   if (predHome === realHome && predAway === realAway) return config.exact;
 
