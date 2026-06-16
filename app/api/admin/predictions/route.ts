@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const DB_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
-const PAGE = 5000;
+const PAGE = 1000;
 
 export async function GET() {
   const all: unknown[] = [];
